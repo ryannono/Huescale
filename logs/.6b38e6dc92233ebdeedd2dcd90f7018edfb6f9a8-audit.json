@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Volumes/git/rnono-bp-experiments/logs/.6b38e6dc92233ebdeedd2dcd90f7018edfb6f9a8-audit.json",
+    "files": [
+        {
+            "date": 1764016414208,
+            "name": "/Volumes/git/rnono-bp-experiments/logs/mcp-puppeteer-2025-11-24.log",
+            "hash": "c9b3ff2c201ce8929cc0c7d4a495bcc0f5e32b8d5a4a1338ff7e453312641670"
+        }
+    ],
+    "hashType": "sha256"
+}

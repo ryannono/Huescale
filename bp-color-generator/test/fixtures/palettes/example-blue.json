@@ -1,0 +1,16 @@
+{
+  "name": "example-blue",
+  "description": "Example blue palette from user",
+  "stops": [
+    { "position": 100, "hex": "#D5E3F8" },
+    { "position": 200, "hex": "#ABC7F0" },
+    { "position": 300, "hex": "#82ACE7" },
+    { "position": 400, "hex": "#598FDD" },
+    { "position": 500, "hex": "#2D72D2" },
+    { "position": 600, "hex": "#2158A4" },
+    { "position": 700, "hex": "#163F79" },
+    { "position": 800, "hex": "#0B2850" },
+    { "position": 900, "hex": "#03122B" },
+    { "position": 1000, "hex": "#00030A" }
+  ]
+}
