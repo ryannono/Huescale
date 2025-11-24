@@ -28,6 +28,7 @@ export const StopPositionSchema = Schema.Literal(
   })
 )
 
+export const StopPosition = Schema.decodeUnknown(StopPositionSchema)
 export type StopPosition = typeof StopPositionSchema.Type
 
 /**
@@ -61,6 +62,7 @@ export const PaletteStopSchema = Schema.Struct({
   })
 )
 
+export const PaletteStop = Schema.decodeUnknown(PaletteStopSchema)
 export type PaletteStop = typeof PaletteStopSchema.Type
 
 /**
@@ -90,6 +92,7 @@ export const PaletteSchema = Schema.Struct({
   })
 )
 
+export const Palette = Schema.decodeUnknown(PaletteSchema)
 export type Palette = typeof PaletteSchema.Type
 
 /**
@@ -119,4 +122,5 @@ export const ExamplePaletteInputSchema = Schema.Struct({
   })
 )
 
+export const ExamplePaletteInput = Schema.decodeUnknown(ExamplePaletteInputSchema)
 export type ExamplePaletteInput = typeof ExamplePaletteInputSchema.Type
