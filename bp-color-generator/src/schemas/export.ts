@@ -20,7 +20,7 @@ export type ExportTarget = typeof ExportTargetSchema.Type
 /**
  * Batch input mode
  */
-export const BatchInputModeSchema = Schema.Literal("paste", "cycle").pipe(
+export const BatchInputModeSchema = Schema.Literal("paste", "cycle", "transform").pipe(
   Schema.annotations({
     identifier: "BatchInputMode",
     description: "How to input color/stop pairs in batch mode"

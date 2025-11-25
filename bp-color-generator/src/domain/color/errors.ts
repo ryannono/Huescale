@@ -29,3 +29,20 @@ export class GamutError extends Data.TaggedError("GamutError")<{
   readonly color: unknown
   readonly message: string
 }> {}
+
+/**
+ * Error thrown when a color transformation fails
+ */
+export class ColorTransformationError extends Data.TaggedError("ColorTransformationError")<{
+  readonly reference: unknown
+  readonly target: unknown
+  readonly reason: string
+}> {}
+
+/**
+ * Error thrown when transformation syntax cannot be parsed
+ */
+export class TransformationParseError extends Data.TaggedError("TransformationParseError")<{
+  readonly input: string
+  readonly reason: string
+}> {}

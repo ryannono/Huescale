@@ -132,6 +132,11 @@ export const promptForBatchInputMode = (): Effect.Effect<BatchInputModeType, Par
             label: "Enter a single color",
             value: "cycle",
             hint: "Interactive prompts for one palette"
+          },
+          {
+            label: "Transform colors (apply optical appearance)",
+            value: "transform",
+            hint: "Apply lightness+chroma from one color to another's hue"
           }
         ]
       })
@@ -219,6 +224,82 @@ export const promptForJsonPath = (): Effect.Effect<JsonPathType, ParseError> =>
     }
 
     return yield* JsonPath(path)
+  })
+
+/**
+ * Prompt for transformation reference color
+ */
+export const promptForReferenceColor = (): Effect.Effect<string, ParseError> =>
+  Effect.gen(function*() {
+    const color = yield* Effect.promise(() =>
+      clack.text({
+        message: "Enter reference color (source of lightness + chroma):",
+        placeholder: "#2D72D2 or 2D72D2",
+        validate: (value) => {
+          if (!value) return "Reference color is required"
+          return undefined
+        }
+      })
+    )
+
+    if (clack.isCancel(color)) {
+      clack.cancel("Operation cancelled")
+      process.exit(0)
+    }
+
+    return yield* ColorString(color)
+  })
+
+/**
+ * Prompt for transformation target color(s)
+ */
+export const promptForTargetColors = (): Effect.Effect<Array<string>, ParseError> =>
+  Effect.gen(function*() {
+    const input = yield* Effect.promise(() =>
+      clack.text({
+        message: "Enter target color(s) (hue to preserve):",
+        placeholder: "Single: 238551  or  Multiple: 238551,DC143C,FF6B6B",
+        validate: (value) => {
+          if (!value) return "At least one target color is required"
+          return undefined
+        }
+      })
+    )
+
+    if (clack.isCancel(input)) {
+      clack.cancel("Operation cancelled")
+      process.exit(0)
+    }
+
+    // Split by comma and validate each
+    const colorInputs = input.split(",").map((c) => c.trim()).filter((c) => c.length > 0)
+
+    // Validate each color with ColorString schema
+    const validatedColors = []
+    for (const colorInput of colorInputs) {
+      const validated = yield* ColorString(colorInput)
+      validatedColors.push(validated)
+    }
+
+    return validatedColors
+  })
+
+/**
+ * Prompt to add another transformation
+ */
+export const promptForAnotherTransformation = (): Effect.Effect<boolean, never> =>
+  Effect.gen(function*() {
+    const answer = yield* Effect.promise(() =>
+      clack.confirm({
+        message: "Add another transformation?"
+      })
+    )
+
+    if (clack.isCancel(answer)) {
+      return false
+    }
+
+    return answer
   })
 
 /**
