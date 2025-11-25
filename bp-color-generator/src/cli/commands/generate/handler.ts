@@ -1,11 +1,11 @@
 /**
  * Main command handler for palette generation
  *
- * Orchestrates mode detection (batch vs single) and routes to appropriate handler
+ * Uses ModeResolver to detect execution mode and routes to appropriate handler
  */
 
 import * as clack from "@clack/prompts"
-import { Effect, Either, Option as O } from "effect"
+import { Effect, Option as O } from "effect"
 import { ConfigService } from "../../../services/ConfigService.js"
 import {
   promptForAnotherTransformation,
@@ -16,18 +16,14 @@ import {
   promptForTargetColors
 } from "../../prompts.js"
 import { handleBatchMode } from "./modes/batch/executor.js"
+import { ModeResolver } from "./modes/resolver.js"
 import { handleSingleMode } from "./modes/single/executor.js"
 import {
   handleBatchTransformations,
   handleOneToManyTransformation,
   handleSingleTransformation
 } from "./modes/transform/executor.js"
-import { parseBatchPairsInput, type ParsedPair } from "./parsers/batch-parser.js"
-import {
-  isTransformationSyntax,
-  parseAnyTransformation,
-  parseBatchTransformations
-} from "./parsers/transform-parser.js"
+import { parseBatchPairsInput } from "./parsers/batch-parser.js"
 
 /**
  * Main handler for the generate command
@@ -54,157 +50,164 @@ export const handleGenerate = ({
   Effect.gen(function*() {
     // Get pattern from option or config
     const config = yield* ConfigService
-    const pattern = O.isSome(patternOpt) ? O.getOrThrow(patternOpt) : yield* config.getPatternSource()
-    // Determine if interactive mode
-    const hasColorInput = O.isSome(colorOpt)
-    const isInteractive = !hasColorInput || O.isSome(stopOpt) === false
+    const pattern = yield* O.match(patternOpt, {
+      onNone: () => config.getPatternSource(),
+      onSome: (p) => Effect.succeed(p)
+    })
 
-    // Show intro once at the start for interactive mode
-    if (isInteractive) {
+    // Use ModeResolver to detect execution mode
+    const resolver = yield* ModeResolver
+    const detection = yield* resolver.detectMode({
+      colorOpt,
+      stopOpt,
+      formatOpt,
+      nameOpt,
+      patternOpt,
+      exportOpt,
+      exportPath
+    })
+
+    const { isInteractive, mode } = detection
+
+    // Determine if we need to show intro (any prompts will be displayed)
+    const willPrompt = isInteractive ||
+      O.isNone(formatOpt) ||
+      O.isNone(nameOpt) ||
+      (mode._tag === "SinglePalette" && O.isNone(stopOpt))
+
+    // Show intro before any prompts
+    if (willPrompt) {
       clack.intro("🎨 BP Color Palette Generator")
     }
 
-    // Try to detect transformation mode or batch mode from color input
-    let pairs: Array<ParsedPair> | undefined
-    let isBatchMode = false
-    let isTransformationMode = false
-    let transformationInputs: any
+    // Handle interactive transformation prompts
+    if (isInteractive && mode._tag === "SinglePalette" && O.isNone(colorOpt)) {
+      const inputMode = yield* promptForBatchInputMode()
 
-    if (hasColorInput) {
-      const colorValue = O.getOrThrow(colorOpt)
-
-      // Check if it's transformation syntax (contains >)
-      if (isTransformationSyntax(colorValue)) {
-        isTransformationMode = true
-
-        // Try to parse as batch transformations first (multiple lines)
-        if (colorValue.includes("\n") || (colorValue.split(",").length > 1 && !colorValue.includes("("))) {
-          transformationInputs = yield* parseBatchTransformations(colorValue)
-        } else {
-          // Single transformation
-          transformationInputs = [yield* parseAnyTransformation(colorValue)]
-        }
-      } else {
-        // Not transformation syntax - try parsing as regular batch input (comma or newline separated)
-        const batchParseResult = yield* Effect.either(parseBatchPairsInput(colorValue))
-
-        if (Either.isRight(batchParseResult)) {
-          const parsed = batchParseResult.right
-          // If we got multiple pairs, it's batch mode
-          if (parsed.length > 1) {
-            isBatchMode = true
-            pairs = parsed
-          } else if (parsed.length === 1) {
-            // Single pair - could be batch or single mode
-            // If it has :: or : separator, treat as batch
-            if (colorValue.includes("::") || colorValue.includes(":")) {
-              isBatchMode = true
-              pairs = parsed
-            }
-          }
-        }
-      }
-    } else {
-      // No color provided - prompt for mode in interactive
-      if (isInteractive) {
-        const inputMode = yield* promptForBatchInputMode()
-
-        if (inputMode === "paste") {
-          const pasteInput = yield* promptForBatchPaste()
-          const parsedPairs = yield* parseBatchPairsInput(pasteInput)
-          isBatchMode = true
-          pairs = parsedPairs
-        } else if (inputMode === "transform") {
-          // Interactive transformation mode - support multiple transformations
-          const allTransformations = []
-
-          let continueAdding = true
-          while (continueAdding) {
-            const referenceColor = yield* promptForReferenceColor()
-            const targetColors = yield* promptForTargetColors()
-            const stop = yield* promptForStop()
-
-            // Build transformation input
-            if (targetColors.length === 1) {
-              allTransformations.push({
-                reference: referenceColor,
-                target: targetColors[0],
-                stop
-              })
-            } else {
-              allTransformations.push({
-                reference: referenceColor,
-                targets: targetColors,
-                stop
-              })
-            }
-
-            // Ask if user wants to add another
-            continueAdding = yield* promptForAnotherTransformation()
-          }
-
-          transformationInputs = allTransformations
-          isTransformationMode = true
-        }
-        // else: cycle mode just falls through to single palette mode
-      }
-    }
-
-    // TRANSFORMATION MODE FLOW
-    if (isTransformationMode && transformationInputs) {
-      if (transformationInputs.length === 1) {
-        const input = transformationInputs[0]
-        if ("targets" in input) {
-          // One-to-many transformation
-          return yield* handleOneToManyTransformation({
-            formatOpt,
-            input,
-            isInteractive,
-            nameOpt,
-            pattern
-          })
-        } else {
-          // Single transformation
-          return yield* handleSingleTransformation({
-            formatOpt,
-            input,
-            isInteractive,
-            nameOpt,
-            pattern
-          })
-        }
-      } else {
-        // Batch transformations
-        return yield* handleBatchTransformations({
+      if (inputMode === "paste") {
+        const pasteInput = yield* promptForBatchPaste()
+        const parsedPairs = yield* parseBatchPairsInput(pasteInput)
+        return yield* handleBatchMode({
+          exportOpt,
+          exportPath,
           formatOpt,
-          inputs: transformationInputs,
+          isInteractive,
+          nameOpt,
+          pairs: parsedPairs,
+          pattern
+        })
+      } else if (inputMode === "transform") {
+        // Interactive transformation mode - support multiple transformations
+        const allTransformations = []
+
+        let continueAdding = true
+        while (continueAdding) {
+          const referenceColor = yield* promptForReferenceColor()
+          const targetColors = yield* promptForTargetColors()
+          const stop = yield* promptForStop()
+
+          // Build transformation input
+          if (targetColors.length === 1) {
+            allTransformations.push({
+              reference: referenceColor,
+              target: targetColors[0]!,
+              stop
+            })
+          } else {
+            allTransformations.push({
+              reference: referenceColor,
+              targets: targetColors,
+              stop
+            })
+          }
+
+          // Ask if user wants to add another
+          continueAdding = yield* promptForAnotherTransformation()
+        }
+
+        return yield* handleBatchTransformations({
+          exportOpt,
+          exportPath,
+          formatOpt,
+          inputs: allTransformations,
           isInteractive,
           nameOpt,
           pattern
         })
       }
+      // else: cycle mode falls through to single palette mode
     }
 
-    // BATCH MODE FLOW
-    if (isBatchMode && pairs) {
-      return yield* handleBatchMode({
-        exportOpt,
-        exportPath,
-        formatOpt,
-        isInteractive,
-        nameOpt,
-        pairs,
-        pattern
-      })
+    // Route to appropriate handler based on detected mode
+    let result
+    switch (mode._tag) {
+      case "SinglePalette":
+        result = yield* handleSingleMode({
+          colorOpt,
+          exportOpt,
+          exportPath,
+          formatOpt,
+          nameOpt,
+          pattern,
+          stopOpt
+        })
+        break
+
+      case "BatchPalettes":
+        result = yield* handleBatchMode({
+          exportOpt,
+          exportPath,
+          formatOpt,
+          isInteractive,
+          nameOpt,
+          pairs: mode.pairs.map((p) => ({ color: p.color, stop: p.stop, raw: `${p.color}::${p.stop}` })),
+          pattern
+        })
+        break
+
+      case "SingleTransform":
+        result = yield* handleSingleTransformation({
+          exportOpt,
+          exportPath,
+          formatOpt,
+          input: mode.input,
+          isInteractive,
+          nameOpt,
+          pattern
+        })
+        break
+
+      case "ManyTransform":
+        result = yield* handleOneToManyTransformation({
+          exportOpt,
+          exportPath,
+          formatOpt,
+          input: {
+            reference: mode.reference,
+            targets: mode.targets,
+            stop: mode.stop
+          },
+          isInteractive,
+          nameOpt,
+          pattern
+        })
+        break
+
+      case "BatchTransform":
+        result = yield* handleBatchTransformations({
+          exportOpt,
+          exportPath,
+          formatOpt,
+          inputs: [...mode.transformations],
+          isInteractive,
+          nameOpt,
+          pattern
+        })
+        break
     }
 
-    // SINGLE PALETTE MODE
-    return yield* handleSingleMode({
-      colorOpt,
-      formatOpt,
-      isInteractive,
-      nameOpt,
-      pattern,
-      stopOpt
-    })
+    // Show outro after everything is complete
+    clack.outro("Done! ✓")
+
+    return result
   })

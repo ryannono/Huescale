@@ -3,12 +3,16 @@
  */
 
 import * as clack from "@clack/prompts"
-import { Effect } from "effect"
+import { Effect, Option as O } from "effect"
 import { BatchGeneratedPaletteOutput } from "../../../../schemas/batch.js"
 import { ColorSpace } from "../../../../schemas/color.js"
+import type { ExportConfig } from "../../../../schemas/export.js"
 import { GeneratePaletteInput } from "../../../../schemas/generate-palette.js"
 import { StopPosition } from "../../../../schemas/palette.js"
+import { ExportService } from "../../../../services/ExportService.js"
 import { PaletteService } from "../../../../services/PaletteService.js"
+import { promptForJsonPath } from "../../../prompts.js"
+import { validateExportTarget } from "../validation.js"
 
 /**
  * Generate and display palette
@@ -45,26 +49,9 @@ export const generateAndDisplay = ({
   })
 
 /**
- * Display palette with simple formatting (for direct CLI)
+ * Display palette with clack formatting
  */
-export const displayPaletteSimple = (
-  result: Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>
-) =>
-  Effect.sync(() => {
-    console.log(`\n🎨 Generated Palette: ${result.name}`)
-    console.log(`   Input: ${result.inputColor} at stop ${result.anchorStop}`)
-    console.log(`   Format: ${result.outputFormat}\n`)
-
-    for (const stop of result.stops) {
-      console.log(`   ${stop.position}: ${stop.value}`)
-    }
-    console.log()
-  })
-
-/**
- * Display palette with clack formatting (for interactive CLI)
- */
-export const displayPaletteInteractive = (
+export const displayPalette = (
   result: Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>
 ) =>
   Effect.sync(() => {
@@ -74,42 +61,16 @@ export const displayPaletteInteractive = (
       }`,
       `Palette: ${result.name}`
     )
-
-    clack.outro("Done! 🎉")
   })
 
 /**
- * Display batch results with simple formatting (for direct CLI)
+ * Display batch results with clack formatting
  */
-export const displayBatchSimple = (batch: BatchGeneratedPaletteOutput) =>
+export const displayBatch = (batch: BatchGeneratedPaletteOutput) =>
   Effect.sync(() => {
-    const status = batch.partial ? "⚠️  Partial results" : "✅ All palettes generated"
+    const status = batch.partial ? "Generated with some failures" : "All generated successfully"
 
-    console.log(`\n${status}`)
-    console.log(`   Group: ${batch.groupName}`)
-    console.log(`   Format: ${batch.outputFormat}`)
-    console.log(`   Generated: ${new Date(batch.generatedAt).toLocaleString()}`)
-    console.log(`   Count: ${batch.palettes.length} palette(s)\n`)
-
-    for (const palette of batch.palettes) {
-      console.log(`━━━ ${palette.name} ━━━`)
-      console.log(`Input: ${palette.inputColor} at stop ${palette.anchorStop}\n`)
-
-      for (const stop of palette.stops) {
-        console.log(`  ${stop.position}: ${stop.value}`)
-      }
-      console.log()
-    }
-  })
-
-/**
- * Display batch results with clack formatting (for interactive CLI)
- */
-export const displayBatchInteractive = (batch: BatchGeneratedPaletteOutput) =>
-  Effect.sync(() => {
-    const status = batch.partial ? "⚠️  Generated with some failures" : "✅ All generated successfully"
-
-    clack.log.success(`${status}: ${batch.palettes.length} palette(s)`)
+    clack.log.success(`${status}: ${batch.palettes.length} palette(s) ✓`)
     clack.log.info(`Group: ${batch.groupName}`)
     clack.log.info(`Format: ${batch.outputFormat}`)
 
@@ -121,6 +82,87 @@ export const displayBatchInteractive = (batch: BatchGeneratedPaletteOutput) =>
         palette.name
       )
     }
+  })
 
-    clack.outro("Done! 🎉")
+/**
+ * Validate and build export config
+ * Returns None if export target is "none", otherwise returns the config
+ */
+export const buildExportConfig = (
+  exportOpt: O.Option<string>,
+  exportPath: O.Option<string>
+) =>
+  Effect.gen(function*() {
+    const exportTarget = yield* validateExportTarget(exportOpt)
+
+    if (exportTarget === "none") {
+      return O.none()
+    }
+
+    let jsonPathValue = O.getOrUndefined(exportPath)
+    if (exportTarget === "json" && !jsonPathValue) {
+      jsonPathValue = yield* promptForJsonPath()
+    }
+
+    const config: ExportConfig = {
+      target: exportTarget,
+      jsonPath: jsonPathValue,
+      includeOKLCH: true
+    }
+
+    return O.some(config)
+  })
+
+/**
+ * Execute export for a single palette with config
+ */
+export const executePaletteExport = (
+  palette: Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>,
+  config: ExportConfig
+) =>
+  Effect.gen(function*() {
+    const exportService = yield* ExportService
+    yield* exportService.exportPalette(palette, config)
+    clack.log.success(
+      config.target === "json"
+        ? `Exported to ${config.jsonPath}`
+        : "Copied to clipboard!"
+    )
+  })
+
+/**
+ * Execute export for multiple palettes with config
+ */
+export const executePalettesExport = (
+  palettes: Array<Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>>,
+  config: ExportConfig
+) =>
+  Effect.gen(function*() {
+    const exportService = yield* ExportService
+    // Export each palette individually
+    for (const palette of palettes) {
+      yield* exportService.exportPalette(palette, config)
+    }
+    clack.log.success(
+      config.target === "json"
+        ? `Exported ${palettes.length} palette(s) to ${config.jsonPath}`
+        : `Copied ${palettes.length} palette(s) to clipboard!`
+    )
+  })
+
+/**
+ * Execute export for batch result with config
+ */
+export const executeBatchExport = (
+  batch: BatchGeneratedPaletteOutput,
+  config: ExportConfig
+) =>
+  Effect.gen(function*() {
+    const exportService = yield* ExportService
+    yield* exportService.exportBatch(batch, config)
+    clack.log.success(
+      config.target === "json"
+        ? `Exported to ${config.jsonPath}`
+        : "Copied to clipboard!"
+    )
   })

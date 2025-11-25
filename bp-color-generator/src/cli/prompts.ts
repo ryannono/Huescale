@@ -46,11 +46,18 @@ export const promptForColor = (): Effect.Effect<string, ParseError, never> =>
 /**
  * Prompt for stop position
  */
-export const promptForStop = (): Effect.Effect<StopPositionType, ParseError> =>
+export const promptForStop = (color?: string, colorIndex?: number): Effect.Effect<StopPositionType, ParseError> =>
   Effect.gen(function*() {
+    let message = "Which stop does this color represent?"
+    if (color && colorIndex) {
+      message = `Which stop does color ${colorIndex} (${color}) represent?`
+    } else if (color) {
+      message = `Which stop does this color (${color}) represent?`
+    }
+
     const stop = yield* Effect.promise(() =>
       clack.select({
-        message: "Which stop does this color represent?",
+        message,
         options: STOP_POSITIONS.map((pos) => ({
           label: `${pos}${getStopDescription(pos)}`,
           value: pos

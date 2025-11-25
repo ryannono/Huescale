@@ -5,13 +5,11 @@
 import * as clack from "@clack/prompts"
 import { Effect, Option as O } from "effect"
 import type { ColorStopPair } from "../../../../../schemas/batch.js"
-import type { ExportConfig } from "../../../../../schemas/export.js"
-import { ExportService } from "../../../../../services/ExportService.js"
 import { PaletteService } from "../../../../../services/PaletteService.js"
-import { promptForJsonPath, promptForPaletteName, promptForStop } from "../../../../prompts.js"
-import { displayBatchInteractive } from "../../output/formatter.js"
+import { promptForPaletteName, promptForStop } from "../../../../prompts.js"
+import { buildExportConfig, displayBatch, executeBatchExport } from "../../output/formatter.js"
 import { getPairsWithMissingStops, type ParsedPair, setPairStop } from "../../parsers/batch-parser.js"
-import { validateExportTarget, validateFormat } from "../../validation.js"
+import { validateFormat } from "../../validation.js"
 
 /**
  * Handle batch mode palette generation
@@ -45,11 +43,10 @@ export const handleBatchMode = ({
         clack.log.warn(`${missingStops.length} color(s) missing stop position`)
       }
 
-      for (const pair of missingStops) {
-        if (isInteractive) {
-          clack.log.info(`For color: ${pair.color}`)
-        }
-        const stop = yield* promptForStop()
+      for (let i = 0; i < missingStops.length; i++) {
+        const pair = missingStops[i]!
+        const colorIndex = pairs.findIndex((p) => p.raw === pair.raw) + 1
+        const stop = yield* promptForStop(pair.color, colorIndex)
         const updated = yield* setPairStop(pair, stop)
         // Update in pairs array
         const index = pairs.findIndex((p) => p.raw === pair.raw)
@@ -91,38 +88,22 @@ export const handleBatchMode = ({
 
     if (spinner) {
       if (batchResult.partial) {
-        spinner.stop(`⚠️  Generated ${batchResult.palettes.length} palette(s) with some failures`)
+        spinner.stop(`Generated ${batchResult.palettes.length} palette(s) with some failures`)
       } else {
-        spinner.stop(`✅ Generated ${batchResult.palettes.length} palette(s)`)
+        spinner.stop(`Generated ${batchResult.palettes.length} palette(s)`)
       }
     }
 
     // Display results
-    yield* displayBatchInteractive(batchResult)
+    yield* displayBatch(batchResult)
 
-    // Handle export with validation
-    const exportTarget = yield* validateExportTarget(exportOpt)
+    // Handle export
+    const exportConfig = yield* buildExportConfig(exportOpt, exportPath)
 
-    if (exportTarget !== "none") {
-      let jsonPathValue = O.getOrUndefined(exportPath)
-      if (exportTarget === "json" && !jsonPathValue) {
-        jsonPathValue = yield* promptForJsonPath()
-      }
-
-      const exportConfig: ExportConfig = {
-        target: exportTarget,
-        jsonPath: jsonPathValue,
-        includeOKLCH: true
-      }
-
-      const exportService = yield* ExportService
-      yield* exportService.exportBatch(batchResult, exportConfig)
-      clack.log.success(
-        exportTarget === "json"
-          ? `Exported to ${exportConfig.jsonPath}`
-          : "Copied to clipboard!"
-      )
-    }
+    yield* O.match(exportConfig, {
+      onNone: () => Effect.void,
+      onSome: (config) => executeBatchExport(batchResult, config)
+    })
 
     return batchResult
   })

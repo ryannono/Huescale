@@ -4,24 +4,32 @@
  * Applies optical appearance transformations and generates palettes
  */
 
-import * as clack from "@clack/prompts"
 import { Effect, Option as O } from "effect"
 import { oklchToHex } from "../../../../../domain/color/conversions.js"
 import { applyOpticalAppearance } from "../../../../../domain/color/transformation.js"
 import { ColorSpace, parseColorStringToOKLCH } from "../../../../../schemas/color.js"
 import type { TransformationBatch, TransformationInput } from "../../../../../schemas/transformation.js"
-import { displayPaletteInteractive, displayPaletteSimple, generateAndDisplay } from "../../output/formatter.js"
+import {
+  buildExportConfig,
+  displayPalette,
+  executePaletteExport,
+  executePalettesExport,
+  generateAndDisplay
+} from "../../output/formatter.js"
 
 /**
  * Handle single transformation: ref>target::stop
  */
 export const handleSingleTransformation = ({
+  exportOpt,
+  exportPath,
   formatOpt,
   input,
-  isInteractive,
   nameOpt,
   pattern
 }: {
+  exportOpt: O.Option<string>
+  exportPath: O.Option<string>
   formatOpt: O.Option<string>
   input: TransformationInput
   isInteractive: boolean
@@ -52,12 +60,16 @@ export const handleSingleTransformation = ({
       stop: input.stop
     })
 
-    // Display with appropriate formatting
-    if (isInteractive) {
-      yield* displayPaletteInteractive(result)
-    } else {
-      yield* displayPaletteSimple(result)
-    }
+    // Display palette
+    yield* displayPalette(result)
+
+    // Handle export
+    const exportConfig = yield* buildExportConfig(exportOpt, exportPath)
+
+    yield* O.match(exportConfig, {
+      onNone: () => Effect.void,
+      onSome: (config) => executePaletteExport(result, config)
+    })
 
     return result
   })
@@ -66,12 +78,15 @@ export const handleSingleTransformation = ({
  * Handle one-to-many transformation: ref>(t1,t2,t3)::stop
  */
 export const handleOneToManyTransformation = ({
+  exportOpt,
+  exportPath,
   formatOpt,
   input,
-  isInteractive,
   nameOpt,
   pattern
 }: {
+  exportOpt: O.Option<string>
+  exportPath: O.Option<string>
   formatOpt: O.Option<string>
   input: TransformationBatch
   isInteractive: boolean
@@ -85,7 +100,7 @@ export const handleOneToManyTransformation = ({
     const formatStr = O.getOrNull(formatOpt) ?? "hex"
     const format = yield* ColorSpace(formatStr)
 
-    const results = []
+    const results: Array<Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>> = []
 
     // Process each target
     for (const target of input.targets) {
@@ -107,12 +122,16 @@ export const handleOneToManyTransformation = ({
       results.push(result)
 
       // Display each palette
-      if (isInteractive) {
-        yield* displayPaletteInteractive(result)
-      } else {
-        yield* displayPaletteSimple(result)
-      }
+      yield* displayPalette(result)
     }
+
+    // Handle export
+    const exportConfig = yield* buildExportConfig(exportOpt, exportPath)
+
+    yield* O.match(exportConfig, {
+      onNone: () => Effect.void,
+      onSome: (config) => executePalettesExport(results, config)
+    })
 
     return results
   })
@@ -121,12 +140,16 @@ export const handleOneToManyTransformation = ({
  * Handle batch transformations (multiple lines)
  */
 export const handleBatchTransformations = ({
+  exportOpt,
+  exportPath,
   formatOpt,
   inputs,
   isInteractive,
   nameOpt,
   pattern
 }: {
+  exportOpt: O.Option<string>
+  exportPath: O.Option<string>
   formatOpt: O.Option<string>
   inputs: Array<TransformationInput | TransformationBatch>
   isInteractive: boolean
@@ -134,12 +157,14 @@ export const handleBatchTransformations = ({
   pattern: string
 }) =>
   Effect.gen(function*() {
-    const results = []
+    const results: Array<Effect.Effect.Success<ReturnType<typeof generateAndDisplay>>> = []
 
     for (const input of inputs) {
       if ("targets" in input) {
-        // One-to-many transformation
+        // One-to-many transformation (skip export - batch handles it)
         const batchResults = yield* handleOneToManyTransformation({
+          exportOpt: O.none(),
+          exportPath: O.none(),
           formatOpt,
           input,
           isInteractive,
@@ -148,8 +173,10 @@ export const handleBatchTransformations = ({
         })
         results.push(...batchResults)
       } else {
-        // Single transformation
+        // Single transformation (skip export - batch handles it)
         const result = yield* handleSingleTransformation({
+          exportOpt: O.none(),
+          exportPath: O.none(),
           formatOpt,
           input,
           isInteractive,
@@ -160,9 +187,13 @@ export const handleBatchTransformations = ({
       }
     }
 
-    if (isInteractive) {
-      clack.outro(`✅ Generated ${results.length} palette(s)`)
-    }
+    // Handle export
+    const exportConfig = yield* buildExportConfig(exportOpt, exportPath)
+
+    yield* O.match(exportConfig, {
+      onNone: () => Effect.void,
+      onSome: (config) => executePalettesExport(results, config)
+    })
 
     return results
   })
