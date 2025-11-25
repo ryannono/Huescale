@@ -83,21 +83,72 @@ export const generate = Command.make("generate", {
         clack.intro("🎨 BP Color Palette Generator")
       }
 
-      // Prompt for missing values using pattern matching
-      const color = yield* O.match(colorOpt, {
-        onNone: () => promptForColor(),
-        onSome: (value) => ColorString(value)
-      })
+      // Prompt for missing values with retry on error
+      let color: string
+      while (true) {
+        const colorResult = yield* Effect.either(
+          O.match(colorOpt, {
+            onNone: () => promptForColor(),
+            onSome: (value) => ColorString(value)
+          })
+        )
+        if (colorResult._tag === "Right") {
+          color = colorResult.right
+          break
+        }
+        // On error, always prompt interactively
+        clack.log.error("Invalid color format. Please try again.")
+        const retryColor = yield* promptForColor()
+        const retryResult = yield* Effect.either(ColorString(retryColor))
+        if (retryResult._tag === "Right") {
+          color = retryResult.right
+          break
+        }
+      }
 
-      const stop = yield* O.match(stopOpt, {
-        onNone: () => promptForStop(),
-        onSome: (value) => StopPosition(value)
-      })
+      let stop: StopPosition
+      while (true) {
+        const stopResult = yield* Effect.either(
+          O.match(stopOpt, {
+            onNone: () => promptForStop(),
+            onSome: (value) => StopPosition(value)
+          })
+        )
+        if (stopResult._tag === "Right") {
+          stop = stopResult.right
+          break
+        }
+        // On error, always prompt interactively
+        clack.log.error("Invalid stop position. Please try again.")
+        const retryStop = yield* promptForStop()
+        const retryResult = yield* Effect.either(StopPosition(retryStop))
+        if (retryResult._tag === "Right") {
+          stop = retryResult.right
+          break
+        }
+      }
 
-      const format = yield* O.match(formatOpt, {
-        onNone: () => promptForOutputFormat(),
-        onSome: (value) => ColorSpace(value)
-      })
+      let format: ColorSpace
+      while (true) {
+        const formatResult = yield* Effect.either(
+          O.match(formatOpt, {
+            onNone: () => promptForOutputFormat(),
+            onSome: (value) => ColorSpace(value)
+          })
+        )
+        if (formatResult._tag === "Right") {
+          format = formatResult.right
+          break
+        }
+        // On error, always prompt interactively
+        clack.log.error("Invalid format. Please try again.")
+        const retryFormat = yield* promptForOutputFormat()
+        const retryResult = yield* Effect.either(ColorSpace(retryFormat))
+        if (retryResult._tag === "Right") {
+          format = retryResult.right
+          break
+        }
+      }
 
       const name = yield* O.match(nameOpt, {
         onNone: () => promptForPaletteName("generated"),
