@@ -3,7 +3,11 @@ import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 import { generate } from "./commands/generate.js"
 
-const runCli = Command.run(generate, {
+const cli = Command.make("bp-color").pipe(
+  Command.withSubcommands([generate])
+)
+
+const runCli = Command.run(cli, {
   name: "BP Color Generator",
   version: "0.1.0"
 })
