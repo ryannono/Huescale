@@ -2,7 +2,7 @@ import { Command } from "@effect/cli"
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 import { MainLive } from "../layers/MainLive.js"
-import { generate } from "./commands/generate.js"
+import { generate } from "./commands/generate/index.js"
 
 const cli = Command.make("bp-color").pipe(
   Command.withSubcommands([generate])
