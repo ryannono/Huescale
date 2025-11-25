@@ -33,7 +33,7 @@ export class PatternLoadError extends Data.TaggedError("PatternLoadError")<{
  * ```typescript
  * Effect.gen(function*() {
  *   const service = yield* PatternService
- *   const pattern = yield* service.loadPattern("test/fixtures/palettes/example-blue.json")
+ *   const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
  *   console.log(pattern.referenceStop) // 500
  * }).pipe(Effect.provide(PatternService.Default))
  * ```

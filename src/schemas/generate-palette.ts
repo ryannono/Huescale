@@ -19,7 +19,7 @@ export const GeneratePaletteInputSchema = Schema.Struct({
     default: () => "generated"
   }),
   patternSource: Schema.optionalWith(Schema.String, {
-    default: () => "test/fixtures/palettes/example-blue.json"
+    default: () => "test/fixtures/valid-palettes/example-orange.json"
   })
 }).pipe(
   Schema.annotations({

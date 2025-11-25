@@ -41,7 +41,7 @@ export class ConfigService extends Effect.Service<ConfigService>()("ConfigServic
      */
     getConfig: (): Effect.Effect<AppConfig> =>
       Effect.succeed({
-        patternSource: process.env.PATTERN_SOURCE ?? "test/fixtures/valid-palettes/example-blue.json",
+        patternSource: process.env.PATTERN_SOURCE ?? "test/fixtures/valid-palettes/example-orange.json",
         defaultOutputFormat: "hex" as const,
         defaultPaletteName: "generated"
       }),
@@ -53,7 +53,7 @@ export class ConfigService extends Effect.Service<ConfigService>()("ConfigServic
     getPatternSource: (): Effect.Effect<string> =>
       Effect.gen(function*() {
         const config = yield* Effect.succeed({
-          patternSource: process.env.PATTERN_SOURCE ?? "test/fixtures/valid-palettes/example-blue.json",
+          patternSource: process.env.PATTERN_SOURCE ?? "test/fixtures/valid-palettes/example-orange.json",
           defaultOutputFormat: "hex" as const,
           defaultPaletteName: "generated"
         })
@@ -70,11 +70,11 @@ export class ConfigService extends Effect.Service<ConfigService>()("ConfigServic
     effect: Effect.succeed({
       getConfig: (): Effect.Effect<AppConfig> =>
         Effect.succeed({
-          patternSource: "test/fixtures/valid-palettes/example-blue.json",
+          patternSource: "test/fixtures/valid-palettes/example-orange.json",
           defaultOutputFormat: "hex" as const,
           defaultPaletteName: "generated"
         }),
-      getPatternSource: (): Effect.Effect<string> => Effect.succeed("test/fixtures/valid-palettes/example-blue.json")
+      getPatternSource: (): Effect.Effect<string> => Effect.succeed("test/fixtures/valid-palettes/example-orange.json")
     })
   }).Default
 }

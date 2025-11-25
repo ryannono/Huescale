@@ -1,0 +1,16 @@
+{
+  "name": "example-orange",
+  "description": "Example orange palette",
+  "stops": [
+    { "position": 100, "hex": "#F5DDD1" },
+    { "position": 200, "hex": "#E9BBA4" },
+    { "position": 300, "hex": "#DC9977" },
+    { "position": 400, "hex": "#CD7649" },
+    { "position": 500, "hex": "#BD5200" },
+    { "position": 600, "hex": "#943E00" },
+    { "position": 700, "hex": "#6C2C00" },
+    { "position": 800, "hex": "#471A00" },
+    { "position": 900, "hex": "#250A00" },
+    { "position": 1000, "hex": "#0B0100" }
+  ]
+}

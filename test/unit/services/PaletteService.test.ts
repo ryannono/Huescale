@@ -332,7 +332,7 @@ describe("PaletteService", () => {
             { color: "#2D72D2", stop: 500 },
             { color: "#FF5733", stop: 500 }
           ],
-          patternSource: "test/fixtures/valid-palettes/example-blue.json"
+          patternSource: "test/fixtures/valid-palettes/example-orange.json"
         })
 
         expect(result.palettes).toHaveLength(2)

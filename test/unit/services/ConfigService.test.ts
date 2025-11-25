@@ -12,7 +12,7 @@ describe("ConfigService", () => {
       const service = yield* ConfigService
       const config = yield* service.getConfig()
 
-      expect(config.patternSource).toBe("test/fixtures/valid-palettes/example-blue.json")
+      expect(config.patternSource).toBe("test/fixtures/valid-palettes/example-orange.json")
       expect(config.defaultOutputFormat).toBe("hex")
       expect(config.defaultPaletteName).toBe("generated")
     }).pipe(Effect.provide(ConfigService.Default)))
@@ -22,7 +22,7 @@ describe("ConfigService", () => {
       const service = yield* ConfigService
       const patternSource = yield* service.getPatternSource()
 
-      expect(patternSource).toBe("test/fixtures/valid-palettes/example-blue.json")
+      expect(patternSource).toBe("test/fixtures/valid-palettes/example-orange.json")
     }).pipe(Effect.provide(ConfigService.Default)))
 
   it.effect("should respect PATTERN_SOURCE environment variable", () =>

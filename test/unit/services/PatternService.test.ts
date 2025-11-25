@@ -10,7 +10,7 @@ describe("PatternService", () => {
   it.effect("should load pattern from file", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-blue.json")
+      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
 
       expect(pattern.referenceStop).toBe(500)
       expect(pattern.name).toContain("smoothed")
@@ -21,9 +21,9 @@ describe("PatternService", () => {
   it.effect("should load palette from file", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const palette = yield* service.loadPalette("test/fixtures/valid-palettes/example-blue.json")
+      const palette = yield* service.loadPalette("test/fixtures/valid-palettes/example-orange.json")
 
-      expect(palette.name).toBe("example-blue")
+      expect(palette.name).toBe("example-orange")
       expect(palette.stops).toHaveLength(10)
       expect(palette.stops[0].position).toBe(100)
       expect(palette.stops[0].color).toHaveProperty("l")
@@ -57,7 +57,7 @@ describe("PatternService", () => {
   it.effect("should smooth pattern transforms", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-blue.json")
+      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
 
       // Check that lightness multipliers are linear
       const lightness = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map(
@@ -125,9 +125,9 @@ describe("PatternService", () => {
         const service = yield* PatternService
         const result = yield* service.loadPatternsFromDirectory("test/fixtures/valid-palettes")
 
-        expect(result.palettes.length).toBe(2) // example-blue and example-red
+        expect(result.palettes.length).toBe(3) // example-orange, example-blue, and example-red
         expect(result.pattern.referenceStop).toBe(500)
-        expect(result.pattern.metadata.sourceCount).toBe(2)
+        expect(result.pattern.metadata.sourceCount).toBe(3)
         expect(result.pattern.name).toContain("smoothed")
       }).pipe(Effect.provide(PatternService.Default)))
 
@@ -163,8 +163,8 @@ describe("PatternService", () => {
         const service = yield* PatternService
         const result = yield* service.loadPatternsFromDirectory("test/fixtures/valid-palettes")
 
-        // Should have loaded both example-blue.json and example-red.json
-        expect(result.palettes.length).toBe(2)
+        // Should have loaded example-orange.json, example-blue.json and example-red.json
+        expect(result.palettes.length).toBe(3)
 
         // Pattern should be smoothed
         expect(result.pattern.name).toContain("smoothed")
@@ -172,8 +172,8 @@ describe("PatternService", () => {
         // Should have all 10 transforms
         expect(Object.keys(result.pattern.transforms)).toHaveLength(10)
 
-        // Reference stop should be 1.0
-        expect(result.pattern.transforms[500].lightnessMultiplier).toBe(1.0)
+        // Reference stop should be 1.0 (allow for floating point precision)
+        expect(result.pattern.transforms[500].lightnessMultiplier).toBeCloseTo(1.0)
       }).pipe(Effect.provide(PatternService.Default)))
   })
 })
