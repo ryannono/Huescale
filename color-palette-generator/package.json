@@ -1,5 +1,5 @@
 {
-  "name": "bp-color-generator",
+  "name": "color-palette-generator",
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@10.14.0",
@@ -14,7 +14,7 @@
     "directory": "dist"
   },
   "bin": {
-    "bp-colors": "./build/esm/cli/index.js"
+    "color-palette-generator": "./build/esm/cli/index.js"
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts generate",

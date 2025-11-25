@@ -4,12 +4,12 @@ import { Effect } from "effect"
 import { MainLive } from "../layers/MainLive.js"
 import { generate } from "./commands/generate/index.js"
 
-const cli = Command.make("bp-color").pipe(
+const cli = Command.make("color-palette-generator").pipe(
   Command.withSubcommands([generate])
 )
 
 const runCli = Command.run(cli, {
-  name: "BP Color Generator",
+  name: "Color Palette Generator",
   version: "0.1.0"
 })
 

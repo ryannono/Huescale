@@ -77,7 +77,7 @@ export const handleGenerate = ({
 
     // Show intro before any prompts
     if (willPrompt) {
-      clack.intro("🎨 BP Color Palette Generator")
+      clack.intro("🎨 Color Palette Generator")
     }
 
     // Handle interactive transformation prompts

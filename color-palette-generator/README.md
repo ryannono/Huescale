@@ -1,4 +1,4 @@
-# BP Color Palette Generator
+# Color Palette Generator
 
 > A CLI tool for generating perceptually uniform color palettes using OKLCH color space and Effect-ts functional programming.
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-BP Color Generator is a sophisticated CLI tool that generates complete 10-stop color palettes (100-1000) from a single color input. It uses machine learning-inspired pattern extraction to ensure consistent, perceptually uniform color progressions across all palette stops.
+Color Palette Generator is a sophisticated CLI tool that generates complete 10-stop color palettes (100-1000) from a single color input. It uses machine learning-inspired pattern extraction to ensure consistent, perceptually uniform color progressions across all palette stops.
 
 ### Key Features
 
@@ -31,7 +31,7 @@ BP Color Generator is a sophisticated CLI tool that generates complete 10-stop c
 ```bash
 # Clone repository
 git clone <repository-url>
-cd bp-color-generator
+cd color-palette-generator
 
 # Install dependencies (requires pnpm)
 pnpm install
