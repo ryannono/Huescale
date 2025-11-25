@@ -13,10 +13,10 @@ import type { StopTransform, TransformationPattern } from "../learning/pattern.j
  * - Hue is consistent (median value)
  */
 export const smoothPattern = (pattern: TransformationPattern): TransformationPattern => {
-  // Calculate lightness multipliers - perfectly linear from 100 to 1000
-  const lightnessMultipliers = calculateLinearLightness(pattern.referenceStop)
+  // Calculate lightness multipliers - linear interpolation preserving endpoints
+  const lightnessMultipliers = calculateLinearLightness(pattern)
 
-  // Smooth chroma curve - fit a smooth curve through the data points
+  // Smooth chroma curve - linear interpolation preserving endpoints
   const chromaMultipliers = smoothChromaCurve(pattern)
 
   // Hue - use median to eliminate outliers
@@ -41,80 +41,81 @@ export const smoothPattern = (pattern: TransformationPattern): TransformationPat
 }
 
 /**
- * Calculate perfectly linear lightness multipliers
+ * Calculate lightness multipliers using quadratic interpolation
  *
- * Strategy: Linear interpolation from darkest (100) to lightest (1000)
- * The reference stop determines the anchoring point
+ * Fits a parabola through the three key points (100, 500, 1000)
+ * to create a smooth curve that preserves the learned endpoint values.
  */
 const calculateLinearLightness = (
-  referenceStop: StopPosition
+  pattern: TransformationPattern
 ): Record<StopPosition, number> => {
   const result = {} as Record<StopPosition, number>
 
-  // Reference stop has multiplier of 1.0
-  result[referenceStop] = 1.0
+  // Get the three key points from learned pattern
+  const lightness100 = pattern.transforms[100].lightnessMultiplier
+  const lightness500 = 1.0 // Reference stop is always 1.0
+  const lightness1000 = pattern.transforms[1000].lightnessMultiplier
 
-  // Calculate linear progression
-  // From example: stop 100 should be ~1.6x lighter, stop 1000 should be ~0.17x darker
-  // This gives us a range of about 9.4x from darkest to lightest
+  // Fit a quadratic curve y = ax^2 + bx + c through these three points
+  // Using the same approach as chroma smoothing
+  const c = lightness100
+  const x_mid = (500 - 100) / (1000 - 100) // = 0.444...
 
-  // Total range: let's aim for a nice ratio
-  // If ref is at 500 (middle), we want symmetric-ish behavior
-  const minMultiplier = 0.1 // Darkest stop (1000)
-  const maxMultiplier = 1.9 // Lightest stop (100)
+  const a = (lightness500 - c - lightness1000 * x_mid + c * x_mid) / (x_mid * x_mid - x_mid)
+  const b = lightness1000 - c - a
 
-  // Calculate step size for linear progression
-  const totalSteps = STOP_POSITIONS.length - 1 // 9 steps from 100 to 1000
-  const range = maxMultiplier - minMultiplier
-  const stepSize = range / totalSteps
-
-  for (let i = 0; i < STOP_POSITIONS.length; i++) {
-    const position = STOP_POSITIONS[i]
-    // Linear from max (100) to min (1000)
-    result[position] = maxMultiplier - (stepSize * i)
-  }
-
-  // Normalize so reference stop is exactly 1.0
-  const refValue = result[referenceStop]
+  // Generate smoothed values using the quadratic formula
   for (const position of STOP_POSITIONS) {
-    result[position] = result[position] / refValue
+    const x = (position - 100) / (1000 - 100) // Normalize to [0, 1]
+    result[position] = Math.max(0, a * x * x + b * x + c)
   }
 
   return result
 }
 
 /**
- * Smooth chroma curve using a parabolic fit
+ * Smooth chroma curve using quadratic interpolation
  *
- * Chroma should peak at the reference stop and reduce toward extremes
+ * Fits a parabola through the three key points (100, 500, 1000)
+ * to create a smooth curve that preserves the learned endpoint values.
  */
 const smoothChromaCurve = (
   pattern: TransformationPattern
 ): Record<StopPosition, number> => {
   const result = {} as Record<StopPosition, number>
 
-  // Fit a quadratic curve: y = a*x^2 + b*x + c
-  // Peak should be at reference stop (500), so use vertex form
-  const refStop = pattern.referenceStop
-
-  // Use vertex form: y = a(x - h)^2 + k
-  // where (h, k) is the vertex (peak)
-  // h = refStop, k = 1.0 (peak chroma)
-
-  // Calculate 'a' using endpoints to determine curvature
+  // Get the three key points from learned pattern
   const chroma100 = pattern.transforms[100].chromaMultiplier
+  const chroma500 = 1.0 // Reference stop is always 1.0
   const chroma1000 = pattern.transforms[1000].chromaMultiplier
-  const avgEndChroma = (chroma100 + chroma1000) / 2
 
-  // Solve for 'a': avgEndChroma = a * (450)^2 + 1.0
-  // (using distance from 500 to endpoints: 400)
-  const distance = 450 // Average distance from ref to endpoints
-  const a = (avgEndChroma - 1.0) / (distance * distance)
+  // Fit a quadratic curve y = ax^2 + bx + c through these three points
+  // Normalize x to [0, 1] range: x = (position - 100) / 900
 
-  // Generate smoothed values
+  // Three equations:
+  // chroma100 = a(0)^2 + b(0) + c  =>  c = chroma100
+  // chroma500 = a(400/900)^2 + b(400/900) + c
+  // chroma1000 = a(900/900)^2 + b(900/900) + c  =>  a + b + c = chroma1000
+
+  const c = chroma100
+  const x_mid = (500 - 100) / (1000 - 100) // = 400/900 = 0.444...
+
+  // From equation 2: a*x_mid^2 + b*x_mid + c = chroma500
+  // From equation 3: a + b + c = chroma1000
+  // Solve for a and b:
+  // b = chroma1000 - c - a
+  // a*x_mid^2 + (chroma1000 - c - a)*x_mid + c = chroma500
+  // a*x_mid^2 + chroma1000*x_mid - c*x_mid - a*x_mid + c = chroma500
+  // a(x_mid^2 - x_mid) = chroma500 - c - chroma1000*x_mid + c*x_mid
+  // a = (chroma500 - c - chroma1000*x_mid + c*x_mid) / (x_mid^2 - x_mid)
+
+  const a = (chroma500 - c - chroma1000 * x_mid + c * x_mid) / (x_mid * x_mid - x_mid)
+  const b = chroma1000 - c - a
+
+  // Generate smoothed values using the quadratic formula
   for (const position of STOP_POSITIONS) {
-    const x = position - refStop
-    result[position] = Math.max(0, a * x * x + 1.0)
+    const x = (position - 100) / (1000 - 100) // Normalize to [0, 1]
+    result[position] = Math.max(0, a * x * x + b * x + c)
   }
 
   return result

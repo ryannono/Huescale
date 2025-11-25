@@ -46,9 +46,12 @@ export const generatePaletteFromStop = (
           const relativeHue = targetTransform.hueShiftDegrees - anchorTransform.hueShiftDegrees
 
           // Apply transforms
+          const transformedL = clamp(anchorColor.l * relativeLightness, 0, 1)
+          const transformedC = Math.max(0, anchorColor.c * relativeChroma)
+
           const transformedColor: OKLCHColor = {
-            l: clamp(anchorColor.l * relativeLightness, 0, 1),
-            c: Math.max(0, anchorColor.c * relativeChroma),
+            l: transformedL,
+            c: transformedC,
             h: normalizeHue(anchorColor.h + relativeHue),
             alpha: anchorColor.alpha
           }
