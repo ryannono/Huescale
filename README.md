@@ -1,4 +1,4 @@
-# Color Palette Generator
+# OKLCH Palette Generator
 
 > A CLI tool for generating perceptually uniform color palettes using OKLCH color space and Effect-ts functional programming.
 
@@ -9,7 +9,7 @@
 
 ## Overview
 
-Color Palette Generator is a sophisticated CLI tool that generates complete 10-stop color palettes (100-1000) from a single color input. It uses machine learning-inspired pattern extraction to ensure consistent, perceptually uniform color progressions across all palette stops.
+OKLCH Palette Generator is a CLI tool that generates complete 10-stop color palettes (100-1000) from a single color input. It uses machine learning-inspired pattern extraction to ensure consistent, perceptually uniform color progressions across all palette stops.
 
 <img width="497" height="746" alt="image" src="https://github.com/user-attachments/assets/16a47ef7-646a-4853-8c08-ef3e601e2397" />
 
@@ -30,9 +30,50 @@ Color Palette Generator is a sophisticated CLI tool that generates complete 10-s
 
 ## Installation
 
+### Use without installing (recommended)
+
+Run the CLI directly without installation using npx or pnpm:
+
+```bash
+# Using npx (npm)
+npx oklch-palette-generator generate
+
+# Using pnpm dlx
+pnpm dlx oklch-palette-generator generate
+
+# Short alias
+npx oklch-palette generate
+```
+
+### Global Installation
+
+Install globally to use the command anywhere:
+
+```bash
+# Using npm
+npm install -g oklch-palette-generator
+
+# Using pnpm
+pnpm add -g oklch-palette-generator
+
+# Using yarn
+yarn global add oklch-palette-generator
+```
+
+After installation, you can use either:
+```bash
+oklch-palette-generator generate
+# or the shorter alias
+oklch-palette generate
+```
+
+### Development Setup
+
+To contribute or modify the source code:
+
 ```bash
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/ryannono/color-palette-generator
 cd color-palette-generator
 
 # Install dependencies (requires pnpm)
@@ -48,7 +89,7 @@ pnpm build
 ### Requirements
 
 - Node.js 18+
-- pnpm 10.14+
+- pnpm 10.14+ (for development)
 
 ## Quick Start
 
@@ -57,7 +98,9 @@ pnpm build
 Run without arguments for interactive prompts:
 
 ```bash
-pnpm dev
+npx oklch-palette-generator generate
+# or use the short alias
+npx oklch-palette generate
 ```
 
 You'll be guided through:
@@ -73,16 +116,16 @@ Provide all options via CLI flags:
 
 ```bash
 # Generate palette from color at stop 500
-pnpm dev --color "#2D72D2" --stop 500 --format hex --name "blue-palette"
+npx oklch-palette generate --color "#2D72D2" --stop 500 --format hex --name "blue-palette"
 
 # Short flags
-pnpm dev -c 2D72D2 -s 700 -f oklch -n "dark-blue"
+npx oklch-palette generate -c 2D72D2 -s 700 -f oklch -n "dark-blue"
 
 # Export to JSON
-pnpm dev -c "#2D72D2" -s 500 -f hex --export json --path ./output/palette.json
+npx oklch-palette generate -c "#2D72D2" -s 500 -f hex --export json --path ./output/palette.json
 
 # Copy to clipboard
-pnpm dev -c "#2D72D2" -s 500 -f hex --export clipboard
+npx oklch-palette generate -c "#2D72D2" -s 500 -f hex --export clipboard
 ```
 
 ### Batch Mode
@@ -91,10 +134,10 @@ Generate multiple palettes at once:
 
 ```bash
 # Comma-separated (color::stop pairs)
-pnpm dev -c "#2D72D2::500,#163F79::700" -f hex
+npx oklch-palette generate -c "#2D72D2::500,#163F79::700" -f hex
 
 # Multi-line input (interactive paste mode)
-pnpm dev
+npx oklch-palette generate
 # Select "Paste multiple colors"
 # Enter:
 # #2D72D2::500
@@ -108,14 +151,16 @@ Apply the optical appearance (lightness + chroma) from one color to another colo
 
 ```bash
 # Single transformation: ref>target::stop
-pnpm dev -c "#2D72D2>#FF6B6B::500" -f hex
+npx oklch-palette generate -c "#2D72D2>#FF6B6B::500" -f hex
 
 # One-to-many: ref>(target1,target2,target3)::stop
-pnpm dev -c "#2D72D2>(#FF6B6B,#238551,#FFB366)::500" -f hex
+npx oklch-palette generate -c "#2D72D2>(#FF6B6B,#238551,#FFB366)::500" -f hex
 
 # Batch transformations (comma or newline separated)
-pnpm dev -c "#2D72D2>#FF6B6B::500,#48AFF0>#238551::600" -f hex
+npx oklch-palette generate -c "#2D72D2>#FF6B6B::500,#48AFF0>#238551::600" -f hex
 ```
+
+> **Note for contributors:** If you're developing locally, replace `npx oklch-palette` with `pnpm dev` in all examples above.
 
 ## Usage Details
 

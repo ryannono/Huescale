@@ -1,0 +1,55 @@
+# Source files (we publish built files only)
+src/
+test/
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Development files
+.plan.md
+.plan.**.md
+tsconfig.json
+tsconfig.*.json
+.eslintrc*
+.prettierrc*
+.editorconfig
+vitest.config.ts
+vitest.config.js
+
+# Build artifacts (exclude from npm, keep in git)
+*.tsbuildinfo
+coverage/
+.nyc_output/
+logs/
+
+# Development directories
+scratchpad/
+tmp/
+docs/
+examples/
+
+# Environment and IDE
+.env*
+.DS_Store
+.idea/
+.vscode/
+.direnv/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# Package manager
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json

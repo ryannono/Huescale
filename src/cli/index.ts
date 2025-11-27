@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Command } from "@effect/cli"
 import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
