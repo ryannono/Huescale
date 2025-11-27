@@ -30,8 +30,8 @@
     "access": "public"
   },
   "bin": {
-    "oklch-palette-generator": "./build/src/cli/index.js",
-    "oklch-palette": "./build/src/cli/index.js"
+    "oklch-palette-generator": "./build/esm/cli/index.js",
+    "oklch-palette": "./build/esm/cli/index.js"
   },
   "files": [
     "build/",
@@ -41,9 +41,9 @@
   "scripts": {
     "dev": "tsx src/cli/index.ts generate",
     "codegen": "build-utils prepare-v2",
-    "build": "pnpm build-esm && pnpm build-fix-shebang && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && pnpm build-fix-shebang && build-utils pack-v2",
     "build-esm": "tsc -b tsconfig.build.json",
-    "build-fix-shebang": "node -e \"const fs=require('fs');const path='build/src/cli/index.js';const content=fs.readFileSync(path,'utf8');fs.writeFileSync(path,'#!/usr/bin/env node\\n'+content);\"",
+    "build-fix-shebang": "node -e \"const fs=require('fs');const path='build/esm/cli/index.js';let content=fs.readFileSync(path,'utf8');if(!content.startsWith('#!/usr/bin/env node')){fs.writeFileSync(path,'#!/usr/bin/env node\\n'+content);}\"",
     "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
     "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
     "check": "tsc -b tsconfig.json",
@@ -57,7 +57,6 @@
     "@effect/cli": "^0.72.1",
     "@effect/platform": "^0.93.3",
     "@effect/platform-node": "^0.101.1",
-    "@effect/schema": "^0.75.5",
     "clipboardy": "^5.0.1",
     "culori": "^4.0.1",
     "effect": "^3.19.6"
