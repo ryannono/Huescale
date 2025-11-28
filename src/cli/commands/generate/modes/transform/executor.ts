@@ -5,11 +5,11 @@
  */
 
 import { Effect, Option as O } from "effect"
+import { ColorSpace, parseColorStringToOKLCH } from "../../../../../domain/color/color.schema.js"
 import { oklchToHex } from "../../../../../domain/color/conversions.js"
 import { applyOpticalAppearance } from "../../../../../domain/color/transformation.js"
-import { BatchGeneratedPaletteOutput } from "../../../../../schemas/batch.js"
-import { ColorSpace, parseColorStringToOKLCH } from "../../../../../schemas/color.js"
-import type { TransformationBatch, TransformationInput } from "../../../../../schemas/transformation.js"
+import { BatchGeneratedPaletteOutput } from "../../../../../services/PaletteService/batch.schema.js"
+import type { TransformationBatch, TransformationInput } from "../../../../schemas/transformation.schema.js"
 import {
   buildExportConfig,
   displayPalette,

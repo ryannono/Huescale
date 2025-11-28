@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
-import type { ColorSpace } from "../schemas/color.js"
+import type { ColorSpace } from "../domain/color/color.schema.js"
 
 /**
  * Find package root by checking for patterns/ directory

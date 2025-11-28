@@ -5,13 +5,13 @@
  */
 
 import { Schema } from "effect"
-import { ColorStringSchema } from "../../../../schemas/color.js"
-import { StopPositionSchema } from "../../../../schemas/palette.js"
+import { ColorStringSchema } from "../../../../domain/color/color.schema.js"
+import { StopPositionSchema } from "../../../../domain/palette/palette.schema.js"
 import {
   PartialTransformationBatchSchema,
   TransformationBatchSchema,
   TransformationInputSchema
-} from "../../../../schemas/transformation.js"
+} from "../../../schemas/transformation.schema.js"
 
 /**
  * Single palette generation mode

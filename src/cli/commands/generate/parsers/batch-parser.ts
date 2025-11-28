@@ -4,8 +4,8 @@
 
 import { Effect, Schema } from "effect"
 import { ParseError } from "effect/ParseResult"
-import { ColorStringSchema } from "../../../../schemas/color.js"
-import { StopPositionSchema } from "../../../../schemas/palette.js"
+import { ColorStringSchema } from "../../../../domain/color/color.schema.js"
+import { StopPositionSchema } from "../../../../domain/palette/palette.schema.js"
 
 /**
  * Parsed color/stop pair from user input

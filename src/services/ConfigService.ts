@@ -7,10 +7,10 @@
 
 import { Config, Effect, Either, Schema } from "effect"
 import { CONFIG_DEFAULTS } from "../config/defaults.js"
-import type { ColorSpace } from "../schemas/color.js"
-import { ColorSpaceSchema } from "../schemas/color.js"
-import { FilePathSchema } from "../schemas/filesystem.js"
-import type { FilePath as FilePathType } from "../schemas/filesystem.js"
+import type { ColorSpace } from "../domain/color/color.schema.js"
+import { ColorSpaceSchema } from "../domain/color/color.schema.js"
+import { FilePathSchema } from "./PatternService/filesystem.schema.js"
+import type { FilePath as FilePathType } from "./PatternService/filesystem.schema.js"
 
 // ============================================================================
 // Types

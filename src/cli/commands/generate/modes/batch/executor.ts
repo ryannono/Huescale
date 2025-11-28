@@ -4,8 +4,8 @@
 
 import * as clack from "@clack/prompts"
 import { Effect, Option as O } from "effect"
-import type { ColorStopPair } from "../../../../../schemas/batch.js"
-import { PaletteService } from "../../../../../services/PaletteService.js"
+import type { ColorStopPair } from "../../../../../services/PaletteService/batch.schema.js"
+import { PaletteService } from "../../../../../services/PaletteService/index.js"
 import { promptForPaletteName, promptForStop } from "../../../../prompts.js"
 import { buildExportConfig, displayBatch, executeBatchExport } from "../../output/formatter.js"
 import { getPairsWithMissingStops, type ParsedPair, setPairStop } from "../../parsers/batch-parser.js"

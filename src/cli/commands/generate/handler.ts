@@ -6,7 +6,6 @@
 
 import * as clack from "@clack/prompts"
 import { Effect, Option as O } from "effect"
-import type { TransformationBatch, TransformationInput } from "../../../schemas/transformation.js"
 import { ConfigService } from "../../../services/ConfigService.js"
 import {
   promptForAnotherTransformation,
@@ -16,6 +15,7 @@ import {
   promptForStop,
   promptForTargetColors
 } from "../../prompts.js"
+import type { TransformationBatch, TransformationInput } from "../../schemas/transformation.schema.js"
 import { handleBatchMode } from "./modes/batch/executor.js"
 import { ModeResolver } from "./modes/resolver.js"
 import { handleSingleMode } from "./modes/single/executor.js"

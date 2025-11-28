@@ -3,7 +3,7 @@
  */
 
 import { Schema } from "effect"
-import { OKLCHColorSchema } from "./color.js"
+import { OKLCHColorSchema } from "../color/color.schema.js"
 
 /**
  * Stop Position Schema

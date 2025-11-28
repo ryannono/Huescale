@@ -3,9 +3,9 @@
  */
 
 import { Schema } from "effect"
-import { ColorSpaceSchema, ColorStringSchema } from "./color.js"
-import { GeneratedPaletteOutputSchema } from "./generate-palette.js"
-import { StopPositionSchema } from "./palette.js"
+import { ColorSpaceSchema, ColorStringSchema } from "../../domain/color/color.schema.js"
+import { StopPositionSchema } from "../../domain/palette/palette.schema.js"
+import { GeneratedPaletteOutputSchema } from "./generation.schema.js"
 
 /**
  * Color and stop position pair

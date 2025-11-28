@@ -7,7 +7,7 @@
  */
 
 import { Effect } from "effect"
-import type { OKLCHColor } from "../../schemas/color.js"
+import type { OKLCHColor } from "./color.schema.js"
 import { clampToGamut, isDisplayable, normalizeHue } from "./conversions.js"
 import { ColorConversionError, ColorTransformationError } from "./errors.js"
 

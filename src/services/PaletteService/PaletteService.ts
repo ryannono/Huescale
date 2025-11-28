@@ -11,17 +11,17 @@
 
 import { Array, Data, Effect, Either, Layer, Option } from "effect"
 import type { ParseError } from "effect/ParseResult"
-import { oklchToHex, oklchToOKLAB, oklchToRGB } from "../domain/color/conversions.js"
-import { ColorConversionError } from "../domain/color/errors.js"
-import { generatePaletteFromStop } from "../domain/palette/generator.js"
-import type { BatchGeneratedPaletteOutput, BatchGeneratePaletteInput } from "../schemas/batch.js"
-import type { ColorSpace } from "../schemas/color.js"
-import { parseColorStringToOKLCH } from "../schemas/color.js"
-import { FilePath } from "../schemas/filesystem.js"
-import { GeneratedPaletteOutput, type GeneratePaletteInput } from "../schemas/generate-palette.js"
-import type { Palette } from "../schemas/palette.js"
-import { ConfigService } from "./ConfigService.js"
-import { PatternService } from "./PatternService.js"
+import type { ColorSpace } from "../../domain/color/color.schema.js"
+import { parseColorStringToOKLCH } from "../../domain/color/color.schema.js"
+import { oklchToHex, oklchToOKLAB, oklchToRGB } from "../../domain/color/conversions.js"
+import { ColorConversionError } from "../../domain/color/errors.js"
+import { generatePaletteFromStop } from "../../domain/palette/generator.js"
+import type { Palette } from "../../domain/palette/palette.schema.js"
+import { ConfigService } from "../ConfigService.js"
+import { FilePath } from "../PatternService/filesystem.schema.js"
+import { PatternService } from "../PatternService/index.js"
+import type { BatchGeneratedPaletteOutput, BatchGeneratePaletteInput } from "./batch.schema.js"
+import { GeneratedPaletteOutput, type GeneratePaletteInput } from "./generation.schema.js"
 
 /**
  * Error type for palette generation failures

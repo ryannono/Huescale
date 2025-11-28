@@ -13,7 +13,7 @@ import {
   handleSingleTransformation
 } from "../../src/cli/commands/generate/modes/transform/executor.js"
 import { ConfigService } from "../../src/services/ConfigService.js"
-import { PaletteService } from "../../src/services/PaletteService.js"
+import { PaletteService } from "../../src/services/PaletteService/index.js"
 
 describe("CLI Generate Command Integration", () => {
   describe("Single Palette Mode", () => {

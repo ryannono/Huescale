@@ -5,11 +5,11 @@
 import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Either, Layer } from "effect"
+import { Effect, Either, Layer, ParseResult } from "effect"
 import { vi } from "vitest"
-import type { BatchGeneratedPaletteOutput } from "../../../src/schemas/batch.js"
-import type { GeneratedPaletteOutput } from "../../../src/schemas/generate-palette.js"
-import { ExportError, ExportService } from "../../../src/services/ExportService.js"
+import { ExportError, ExportService, JSONPath } from "../../../src/services/ExportService/index.js"
+import type { BatchGeneratedPaletteOutput } from "../../../src/services/PaletteService/batch.schema.js"
+import type { GeneratedPaletteOutput } from "../../../src/services/PaletteService/generation.schema.js"
 
 import clipboardy from "clipboardy"
 
@@ -70,12 +70,12 @@ describe("ExportService", () => {
         const path = yield* Path.Path
 
         const testPath = path.join("test", "output", "test-export.json")
+        const validatedPath = yield* JSONPath(testPath)
 
         // Export to file
         yield* service.exportPalette(samplePalette, {
           target: "json",
-          jsonPath: testPath,
-          includeOKLCH: true
+          jsonPath: validatedPath
         })
 
         // Verify file was created
@@ -98,8 +98,7 @@ describe("ExportService", () => {
 
         // Export to clipboard
         yield* service.exportPalette(samplePalette, {
-          target: "clipboard",
-          includeOKLCH: true
+          target: "clipboard"
         })
 
         // Verify clipboard was called
@@ -117,8 +116,7 @@ describe("ExportService", () => {
 
         // Should not throw
         yield* service.exportPalette(samplePalette, {
-          target: "none",
-          includeOKLCH: true
+          target: "none"
         })
       }).pipe(Effect.provide(TestLayer)))
 
@@ -127,8 +125,7 @@ describe("ExportService", () => {
         const service = yield* ExportService
         const result = yield* Effect.either(
           service.exportPalette(samplePalette, {
-            target: "json",
-            includeOKLCH: true
+            target: "json"
           })
         )
 
@@ -139,20 +136,23 @@ describe("ExportService", () => {
         }
       }).pipe(Effect.provide(TestLayer)))
 
-    it.effect("should fail with ExportError for invalid file path", () =>
+    it.effect("should fail with ParseError for invalid file path", () =>
       Effect.gen(function*() {
         const service = yield* ExportService
         const result = yield* Effect.either(
-          service.exportPalette(samplePalette, {
-            target: "json",
-            jsonPath: "/invalid/\0/path.json",
-            includeOKLCH: true
-          })
+          Effect.flatMap(
+            JSONPath("/invalid/\0/path.json"),
+            (validatedPath) =>
+              service.exportPalette(samplePalette, {
+                target: "json",
+                jsonPath: validatedPath
+              })
+          )
         )
 
         expect(Either.isLeft(result)).toBe(true)
         if (Either.isLeft(result)) {
-          expect(result.left).toBeInstanceOf(ExportError)
+          expect(result.left).toBeInstanceOf(ParseResult.ParseError)
         }
       }).pipe(Effect.provide(TestLayer)))
   })
@@ -165,12 +165,12 @@ describe("ExportService", () => {
         const path = yield* Path.Path
 
         const testPath = path.join("test", "output", "test-batch-export.json")
+        const validatedPath = yield* JSONPath(testPath)
 
         // Export to file
         yield* service.exportBatch(sampleBatch, {
           target: "json",
-          jsonPath: testPath,
-          includeOKLCH: true
+          jsonPath: validatedPath
         })
 
         // Verify file was created
@@ -193,8 +193,7 @@ describe("ExportService", () => {
 
         // Export to clipboard
         yield* service.exportBatch(sampleBatch, {
-          target: "clipboard",
-          includeOKLCH: true
+          target: "clipboard"
         })
 
         // Verify clipboard was called
@@ -212,8 +211,7 @@ describe("ExportService", () => {
 
         // Should not throw
         yield* service.exportBatch(sampleBatch, {
-          target: "none",
-          includeOKLCH: true
+          target: "none"
         })
       }).pipe(Effect.provide(TestLayer)))
 
@@ -222,8 +220,7 @@ describe("ExportService", () => {
         const service = yield* ExportService
         const result = yield* Effect.either(
           service.exportBatch(sampleBatch, {
-            target: "json",
-            includeOKLCH: true
+            target: "json"
           })
         )
 

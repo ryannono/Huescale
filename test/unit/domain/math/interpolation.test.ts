@@ -6,9 +6,9 @@ import { describe, expect, it } from "@effect/vitest"
 import { Either } from "effect"
 import type { TransformationPattern } from "../../../../src/domain/learning/pattern.js"
 import { clamp, lerp, smoothPattern } from "../../../../src/domain/math/interpolation.js"
+import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
+import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
 import { getStopTransform } from "../../../../src/domain/types/collections.js"
-import type { StopPosition } from "../../../../src/schemas/palette.js"
-import { STOP_POSITIONS } from "../../../../src/schemas/palette.js"
 
 describe("Interpolation Math", () => {
   describe("lerp (linear interpolation)", () => {

@@ -17,7 +17,7 @@ import {
   OKLABColor as OKLABColorDecoder,
   type OKLCHColor,
   type RGBColor
-} from "../../schemas/color.js"
+} from "./color.schema.js"
 import { ColorConversionError } from "./errors.js"
 
 /**

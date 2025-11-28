@@ -5,7 +5,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either, Layer } from "effect"
 import { ConfigService } from "../../../src/services/ConfigService.js"
-import { PaletteGenerationError, PaletteService } from "../../../src/services/PaletteService.js"
+import { PaletteGenerationError, PaletteService } from "../../../src/services/PaletteService/index.js"
 
 // Test layer with all test dependencies
 // We need to provide ConfigService separately since tests access it directly

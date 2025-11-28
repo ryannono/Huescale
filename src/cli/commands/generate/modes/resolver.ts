@@ -7,9 +7,9 @@
 
 import { Effect, Option as O } from "effect"
 import type { ParseError } from "effect/ParseResult"
+import { ColorString } from "../../../../domain/color/color.schema.js"
 import { TransformationParseError } from "../../../../domain/color/errors.js"
-import { ColorString } from "../../../../schemas/color.js"
-import { StopPosition } from "../../../../schemas/palette.js"
+import { StopPosition } from "../../../../domain/palette/palette.schema.js"
 import { parseBatchPairsInput } from "../parsers/batch-parser.js"
 import {
   isTransformationSyntax,

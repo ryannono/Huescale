@@ -7,17 +7,21 @@
 import * as clack from "@clack/prompts"
 import { Effect } from "effect"
 import type { ParseError } from "effect/ParseResult"
-import { ColorSpace, ColorString } from "../schemas/color.js"
+import { ColorSpace, ColorString } from "../domain/color/color.schema.js"
+import {
+  STOP_POSITIONS,
+  StopPosition,
+  type StopPosition as StopPositionType
+} from "../domain/palette/palette.schema.js"
 import {
   BatchInputMode,
   type BatchInputMode as BatchInputModeType,
   BatchPasteInput,
   ExportTarget,
   type ExportTarget as ExportTargetType,
-  JsonPath,
-  type JsonPath as JsonPathType
-} from "../schemas/export.js"
-import { STOP_POSITIONS, StopPosition, type StopPosition as StopPositionType } from "../schemas/palette.js"
+  JSONPath,
+  type JSONPath as JSONPathType
+} from "../services/ExportService/export.schema.js"
 
 // ============================================================================
 // Public API
@@ -174,7 +178,7 @@ export const promptForExportTarget = (): Effect.Effect<ExportTargetType, ParseEr
 /**
  * Prompt for JSON file path
  */
-export const promptForJsonPath = (): Effect.Effect<JsonPathType, ParseError> =>
+export const promptForJsonPath = (): Effect.Effect<JSONPathType, ParseError> =>
   Effect.gen(function*() {
     const path = yield* Effect.promise(() =>
       clack.text({
@@ -189,7 +193,7 @@ export const promptForJsonPath = (): Effect.Effect<JsonPathType, ParseError> =>
       })
     ).pipe(Effect.flatMap(handleCancel))
 
-    return yield* JsonPath(path)
+    return yield* JSONPath(path)
   })
 
 /**

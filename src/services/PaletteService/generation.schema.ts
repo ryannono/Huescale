@@ -5,8 +5,8 @@
  */
 
 import { Schema } from "effect"
-import { ColorSpaceSchema, ColorStringSchema } from "./color.js"
-import { PaletteStopSchema, StopPositionSchema } from "./palette.js"
+import { ColorSpaceSchema, ColorStringSchema } from "../../domain/color/color.schema.js"
+import { PaletteStopSchema, StopPositionSchema } from "../../domain/palette/palette.schema.js"
 
 /**
  * Input schema for palette generation

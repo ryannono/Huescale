@@ -6,13 +6,13 @@
 
 import { Data, Effect } from "effect"
 import type { ParseError } from "effect/ParseResult"
-import { OKLCHColor } from "../../schemas/color.js"
-import { Palette, type StopPosition } from "../../schemas/palette.js"
-import { STOP_POSITIONS } from "../../schemas/palette.js"
+import { OKLCHColor } from "../color/color.schema.js"
 import { clamp, clampToGamut, isDisplayable, normalizeHue } from "../color/conversions.js"
 import { ColorConversionError } from "../color/errors.js"
 import type { StopTransform, TransformationPattern } from "../learning/pattern.js"
 import { getStopTransformEffect } from "../types/collections.js"
+import { Palette, type StopPosition } from "./palette.schema.js"
+import { STOP_POSITIONS } from "./palette.schema.js"
 
 // ============================================================================
 // Constants

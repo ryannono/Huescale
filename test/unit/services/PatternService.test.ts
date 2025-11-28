@@ -4,13 +4,14 @@
 
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either } from "effect"
-import { PatternLoadError, PatternService } from "../../../src/services/PatternService.js"
+import { DirectoryPath, FilePath, PatternLoadError, PatternService } from "../../../src/services/PatternService/index.js"
 
 describe("PatternService", () => {
   it.effect("should load pattern from file", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
+      const filePath = yield* FilePath("test/fixtures/valid-palettes/example-orange.json")
+      const pattern = yield* service.loadPattern(filePath)
 
       expect(pattern.referenceStop).toBe(500)
       expect(pattern.name).toContain("smoothed")
@@ -21,7 +22,7 @@ describe("PatternService", () => {
   it.effect("should load palette from file", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const palette = yield* service.loadPalette("test/fixtures/valid-palettes/example-orange.json")
+      const palette = yield* service.loadPalette(yield* FilePath("test/fixtures/valid-palettes/example-orange.json"))
 
       expect(palette.name).toBe("example-orange")
       expect(palette.stops).toHaveLength(10)
@@ -34,7 +35,7 @@ describe("PatternService", () => {
   it.effect("should fail with PatternLoadError for missing file", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const result = yield* Effect.either(service.loadPattern("nonexistent.json"))
+      const result = yield* Effect.either(service.loadPattern(yield* FilePath("nonexistent.json")))
 
       expect(Either.isLeft(result)).toBe(true)
       if (Either.isLeft(result)) {
@@ -46,7 +47,7 @@ describe("PatternService", () => {
   it.effect("should fail with PatternLoadError for invalid JSON", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const result = yield* Effect.either(service.loadPattern("test/fixtures/invalid.json"))
+      const result = yield* Effect.either(service.loadPattern(yield* FilePath("test/fixtures/invalid.json")))
 
       expect(Either.isLeft(result)).toBe(true)
       if (Either.isLeft(result)) {
@@ -57,11 +58,13 @@ describe("PatternService", () => {
   it.effect("should smooth pattern transforms", () =>
     Effect.gen(function*() {
       const service = yield* PatternService
-      const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
+      const pattern = yield* service.loadPattern(yield* FilePath("test/fixtures/valid-palettes/example-orange.json"))
 
       // Check that lightness multipliers are linear
       const lightness = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000].map(
-        (stop) => pattern.transforms.get(stop as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000)!.lightnessMultiplier
+        (stop) =>
+          pattern.transforms.get(stop as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000)!
+            .lightnessMultiplier
       )
 
       // Lightness should be descending (lighter at 100, darker at 1000)
@@ -78,7 +81,7 @@ describe("PatternService", () => {
       Effect.gen(function*() {
         const service = yield* PatternService
         const result = yield* Effect.either(
-          service.loadPalette("test/fixtures/invalid-palettes/invalid-schema.json")
+          service.loadPalette(yield* FilePath("test/fixtures/invalid-palettes/invalid-schema.json"))
         )
 
         expect(Either.isLeft(result)).toBe(true)
@@ -92,7 +95,7 @@ describe("PatternService", () => {
       Effect.gen(function*() {
         const service = yield* PatternService
         const result = yield* Effect.either(
-          service.loadPalette("test/fixtures/invalid-palettes/invalid-colors.json")
+          service.loadPalette(yield* FilePath("test/fixtures/invalid-palettes/invalid-colors.json"))
         )
 
         expect(Either.isLeft(result)).toBe(true)
@@ -107,7 +110,7 @@ describe("PatternService", () => {
       Effect.gen(function*() {
         const service = yield* PatternService
         const result = yield* Effect.either(
-          service.loadPattern("test/fixtures/invalid-palettes/incomplete-palette.json")
+          service.loadPattern(yield* FilePath("test/fixtures/invalid-palettes/incomplete-palette.json"))
         )
 
         expect(Either.isLeft(result)).toBe(true)
@@ -123,7 +126,7 @@ describe("PatternService", () => {
     it.effect("should load multiple palettes from directory", () =>
       Effect.gen(function*() {
         const service = yield* PatternService
-        const result = yield* service.loadPatternsFromDirectory("test/fixtures/valid-palettes")
+        const result = yield* service.loadPatternsFromDirectory(yield* DirectoryPath("test/fixtures/valid-palettes"))
 
         expect(result.palettes.length).toBe(3) // example-orange, example-blue, and example-red
         expect(result.pattern.referenceStop).toBe(500)
@@ -135,7 +138,7 @@ describe("PatternService", () => {
       Effect.gen(function*() {
         const service = yield* PatternService
         const result = yield* Effect.either(
-          service.loadPatternsFromDirectory("test/fixtures/nonexistent-dir")
+          service.loadPatternsFromDirectory(yield* DirectoryPath("test/fixtures/nonexistent-dir"))
         )
 
         expect(Either.isLeft(result)).toBe(true)
@@ -149,7 +152,7 @@ describe("PatternService", () => {
       Effect.gen(function*() {
         const service = yield* PatternService
         // Create a directory with only .gitkeep file
-        const result = yield* Effect.either(service.loadPatternsFromDirectory("test/unit"))
+        const result = yield* Effect.either(service.loadPatternsFromDirectory(yield* DirectoryPath("test/unit")))
 
         expect(Either.isLeft(result)).toBe(true)
         if (Either.isLeft(result)) {
@@ -161,7 +164,7 @@ describe("PatternService", () => {
     it.effect("should aggregate patterns from multiple palettes", () =>
       Effect.gen(function*() {
         const service = yield* PatternService
-        const result = yield* service.loadPatternsFromDirectory("test/fixtures/valid-palettes")
+        const result = yield* service.loadPatternsFromDirectory(yield* DirectoryPath("test/fixtures/valid-palettes"))
 
         // Should have loaded example-orange.json, example-blue.json and example-red.json
         expect(result.palettes.length).toBe(3)

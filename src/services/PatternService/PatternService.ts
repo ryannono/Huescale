@@ -8,12 +8,12 @@
 import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Data, Effect, Either } from "effect"
-import type { AnalyzedPalette, TransformationPattern } from "../domain/learning/pattern.js"
-import { extractPatterns } from "../domain/learning/statistics.js"
-import { smoothPattern } from "../domain/math/interpolation.js"
-import { parseColorStringToOKLCH } from "../schemas/color.js"
-import { type DirectoryPath, type FilePath, FilePath as FilePathSchema } from "../schemas/filesystem.js"
-import { ExamplePaletteInput } from "../schemas/palette.js"
+import { parseColorStringToOKLCH } from "../../domain/color/color.schema.js"
+import type { AnalyzedPalette, TransformationPattern } from "../../domain/learning/pattern.js"
+import { extractPatterns } from "../../domain/learning/statistics.js"
+import { smoothPattern } from "../../domain/math/interpolation.js"
+import { ExamplePaletteInput } from "../../domain/palette/palette.schema.js"
+import { type DirectoryPath, type FilePath, FilePath as FilePathSchema } from "./filesystem.schema.js"
 
 // ============================================================================
 // Errors

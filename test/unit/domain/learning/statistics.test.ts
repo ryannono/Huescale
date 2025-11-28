@@ -6,9 +6,9 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either } from "effect"
 import type { AnalyzedPalette, TransformationPattern } from "../../../../src/domain/learning/pattern.js"
 import { extractPatterns, PatternExtractionError } from "../../../../src/domain/learning/statistics.js"
+import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
+import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
 import { getStopTransform } from "../../../../src/domain/types/collections.js"
-import type { StopPosition } from "../../../../src/schemas/palette.js"
-import { STOP_POSITIONS } from "../../../../src/schemas/palette.js"
 
 describe("Pattern Extraction Statistics", () => {
   // Helper to create a mock analyzed palette

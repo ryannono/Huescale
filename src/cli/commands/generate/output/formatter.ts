@@ -4,13 +4,14 @@
 
 import * as clack from "@clack/prompts"
 import { Effect, Option as O } from "effect"
-import { BatchGeneratedPaletteOutput } from "../../../../schemas/batch.js"
-import { ColorSpace } from "../../../../schemas/color.js"
-import type { ExportConfig } from "../../../../schemas/export.js"
-import { GeneratePaletteInput } from "../../../../schemas/generate-palette.js"
-import { StopPosition } from "../../../../schemas/palette.js"
-import { ExportService } from "../../../../services/ExportService.js"
-import { PaletteService } from "../../../../services/PaletteService.js"
+import { ColorSpace } from "../../../../domain/color/color.schema.js"
+import { StopPosition } from "../../../../domain/palette/palette.schema.js"
+import type { ExportConfig, JSONPath as JSONPathType } from "../../../../services/ExportService/export.schema.js"
+import { JSONPath } from "../../../../services/ExportService/export.schema.js"
+import { ExportService } from "../../../../services/ExportService/index.js"
+import { BatchGeneratedPaletteOutput } from "../../../../services/PaletteService/batch.schema.js"
+import { GeneratePaletteInput } from "../../../../services/PaletteService/generation.schema.js"
+import { PaletteService } from "../../../../services/PaletteService/index.js"
 import { promptForJsonPath } from "../../../prompts.js"
 import { validateExportTarget } from "../validation.js"
 
@@ -99,15 +100,22 @@ export const buildExportConfig = (
       return O.none()
     }
 
-    let jsonPathValue = O.getOrUndefined(exportPath)
-    if (exportTarget === "json" && !jsonPathValue) {
-      jsonPathValue = yield* promptForJsonPath()
+    const jsonPathValue = O.getOrUndefined(exportPath)
+    let validatedJsonPath: JSONPathType | undefined = undefined
+
+    if (exportTarget === "json") {
+      if (jsonPathValue) {
+        // Validate the provided path
+        validatedJsonPath = yield* JSONPath(jsonPathValue)
+      } else {
+        // Prompt for path
+        validatedJsonPath = yield* promptForJsonPath()
+      }
     }
 
     const config: ExportConfig = {
       target: exportTarget,
-      jsonPath: jsonPathValue,
-      includeOKLCH: true
+      jsonPath: validatedJsonPath
     }
 
     return O.some(config)

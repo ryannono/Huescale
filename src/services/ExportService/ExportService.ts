@@ -9,10 +9,10 @@ import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import clipboardy from "clipboardy"
 import { Data, Effect, Match } from "effect"
-import type { BatchGeneratedPaletteOutput } from "../schemas/batch.js"
-import type { ExportConfig } from "../schemas/export.js"
-import type { GeneratedPaletteOutput } from "../schemas/generate-palette.js"
-import { JSONPath } from "../schemas/IO.js"
+import type { BatchGeneratedPaletteOutput } from "../PaletteService/batch.schema.js"
+import type { GeneratedPaletteOutput } from "../PaletteService/generation.schema.js"
+import type { ExportConfig } from "./export.schema.js"
+import { JSONPath } from "./export.schema.js"
 
 // ============================================================================
 // Constants

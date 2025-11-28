@@ -9,7 +9,7 @@
 
 import * as culori from "culori"
 import { Effect, Schema } from "effect"
-import { ColorConversionError, ColorParseError } from "../domain/color/errors.js"
+import { ColorConversionError, ColorParseError } from "./errors.js"
 
 /**
  * OKLCH Color Schema

@@ -4,8 +4,8 @@
  * These types represent the transformation rules learned from example palettes.
  */
 
-import type { OKLCHColor } from "../../schemas/color.js"
-import type { StopPosition } from "../../schemas/palette.js"
+import type { OKLCHColor } from "../color/color.schema.js"
+import type { StopPosition } from "../palette/palette.schema.js"
 import type { StopTransformMap } from "../types/collections.js"
 
 /**

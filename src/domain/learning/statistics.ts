@@ -3,9 +3,9 @@
  */
 
 import { Array as Arr, Data, Effect, Option, Order } from "effect"
-import type { StopPosition } from "../../schemas/palette.js"
-import { STOP_POSITIONS } from "../../schemas/palette.js"
 import { hueDifference } from "../color/conversions.js"
+import type { StopPosition } from "../palette/palette.schema.js"
+import { STOP_POSITIONS } from "../palette/palette.schema.js"
 import type { AnalyzedPalette, StopTransform, TransformationPattern } from "./pattern.js"
 
 // ============================================================================
