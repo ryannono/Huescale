@@ -4,9 +4,41 @@
 
 import { Array as Arr, Data, Effect, Option, Order } from "effect"
 import { hueDifference } from "../color/color.js"
+import type { OKLCHColor } from "../color/color.schema.js"
 import type { StopPosition } from "../palette/palette.schema.js"
 import { STOP_POSITIONS } from "../palette/palette.schema.js"
-import type { AnalyzedPalette, StopTransform, TransformationPattern } from "./pattern.js"
+import type { StopTransformMap } from "../types/collections.js"
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/** Transformation for a single stop relative to a reference stop */
+export interface StopTransform {
+  readonly lightnessMultiplier: number
+  readonly chromaMultiplier: number
+  readonly hueShiftDegrees: number
+}
+
+/** Complete transformation pattern learned from example palettes */
+export interface TransformationPattern {
+  readonly name: string
+  readonly referenceStop: StopPosition
+  readonly transforms: StopTransformMap
+  readonly metadata: {
+    readonly sourceCount: number
+    readonly confidence: number
+  }
+}
+
+/** An analyzed palette with OKLCH colors */
+export interface AnalyzedPalette {
+  readonly name: string
+  readonly stops: ReadonlyArray<{
+    readonly position: StopPosition
+    readonly color: OKLCHColor
+  }>
+}
 
 // ============================================================================
 // Constants
@@ -25,9 +57,7 @@ const DEFAULT_REFERENCE_STOP = 500 satisfies StopPosition
 // Errors
 // ============================================================================
 
-/**
- * Error when pattern extraction fails
- */
+/** Error when pattern extraction fails */
 export class PatternExtractionError extends Data.TaggedError("PatternExtractionError")<{
   readonly message: string
   readonly cause?: unknown

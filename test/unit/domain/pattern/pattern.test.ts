@@ -4,10 +4,10 @@
 
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either } from "effect"
-import type { AnalyzedPalette, TransformationPattern } from "../../../../src/domain/learning/pattern.js"
-import { extractPatterns, PatternExtractionError } from "../../../../src/domain/learning/statistics.js"
 import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
 import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
+import type { AnalyzedPalette, TransformationPattern } from "../../../../src/domain/pattern/pattern.js"
+import { extractPatterns, PatternExtractionError } from "../../../../src/domain/pattern/pattern.js"
 import { getStopTransform } from "../../../../src/domain/types/collections.js"
 
 describe("Pattern Extraction Statistics", () => {
@@ -209,7 +209,9 @@ describe("Pattern Extraction Statistics", () => {
           // Modify reference stop to have zero lightness
           const zeroPalette: AnalyzedPalette = {
             ...basePalette,
-            stops: basePalette.stops.map((s) => s.position === 500 ? { ...s, color: { ...s.color, l: 0 } } : s)
+            stops: basePalette.stops.map((s: AnalyzedPalette["stops"][number]) =>
+              s.position === 500 ? { ...s, color: { ...s.color, l: 0 } } : s
+            )
           }
 
           const pattern = yield* extractPatterns([zeroPalette])
@@ -225,7 +227,9 @@ describe("Pattern Extraction Statistics", () => {
           // Modify reference stop to have zero chroma
           const zeroPalette: AnalyzedPalette = {
             ...basePalette,
-            stops: basePalette.stops.map((s) => s.position === 500 ? { ...s, color: { ...s.color, c: 0 } } : s)
+            stops: basePalette.stops.map((s: AnalyzedPalette["stops"][number]) =>
+              s.position === 500 ? { ...s, color: { ...s.color, c: 0 } } : s
+            )
           }
 
           const pattern = yield* extractPatterns([zeroPalette])

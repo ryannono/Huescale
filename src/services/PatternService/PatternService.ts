@@ -9,10 +9,10 @@ import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Data, Effect, Either } from "effect"
 import { parseColorStringToOKLCH } from "../../domain/color/color.js"
-import type { AnalyzedPalette, TransformationPattern } from "../../domain/learning/pattern.js"
-import { extractPatterns } from "../../domain/learning/statistics.js"
 import { smoothPattern } from "../../domain/math/interpolation.js"
 import { ExamplePaletteInput } from "../../domain/palette/palette.schema.js"
+import type { AnalyzedPalette, TransformationPattern } from "../../domain/pattern/pattern.js"
+import { extractPatterns } from "../../domain/pattern/pattern.js"
 import { type DirectoryPath, type FilePath, FilePath as FilePathSchema } from "./filesystem.schema.js"
 
 // ============================================================================

@@ -3,9 +3,9 @@
  */
 
 import { Array as Arr, Data, Either, Order } from "effect"
-import type { StopTransform, TransformationPattern } from "../learning/pattern.js"
 import type { StopPosition } from "../palette/palette.schema.js"
 import { STOP_POSITIONS } from "../palette/palette.schema.js"
+import type { StopTransform, TransformationPattern } from "../pattern/pattern.js"
 import { buildStopNumberMap, getStopNumber, getStopTransform, type StopTransformMap } from "../types/collections.js"
 
 /**

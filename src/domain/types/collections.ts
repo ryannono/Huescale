@@ -6,9 +6,9 @@
  */
 
 import { Data, Effect, Either } from "effect"
-import type { StopTransform } from "../learning/pattern.js"
 import type { StopPosition } from "../palette/palette.schema.js"
 import { STOP_POSITIONS } from "../palette/palette.schema.js"
+import type { StopTransform } from "../pattern/pattern.js"
 
 // ============================================================================
 // Types

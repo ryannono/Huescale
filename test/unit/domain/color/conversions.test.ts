@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
-import { OKLCHColor } from "../../../../src/domain/color/color.schema.js"
 import { oklchToHex, oklchToOKLAB, oklchToRGB } from "../../../../src/domain/color/color.js"
+import { OKLCHColor } from "../../../../src/domain/color/color.schema.js"
 
 describe("Color Conversions", () => {
   describe("oklchToHex", () => {

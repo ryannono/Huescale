@@ -4,7 +4,12 @@
 
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either } from "effect"
-import { DirectoryPath, FilePath, PatternLoadError, PatternService } from "../../../src/services/PatternService/index.js"
+import {
+  DirectoryPath,
+  FilePath,
+  PatternLoadError,
+  PatternService
+} from "../../../src/services/PatternService/index.js"
 
 describe("PatternService", () => {
   it.effect("should load pattern from file", () =>
