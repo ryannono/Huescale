@@ -2,108 +2,98 @@
  * Statistical analysis of color palettes to extract transformation patterns
  */
 
-import { Data, Effect } from "effect"
+import { Array as Arr, Data, Effect, Option, Order } from "effect"
 import type { StopPosition } from "../../schemas/palette.js"
 import { STOP_POSITIONS } from "../../schemas/palette.js"
 import { hueDifference } from "../color/conversions.js"
 import type { AnalyzedPalette, StopTransform, TransformationPattern } from "./pattern.js"
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Minimum value to prevent division by zero */
+const MIN_DIVISOR = 0.001
+
+/** Default confidence for single-palette patterns */
+const DEFAULT_SINGLE_PALETTE_CONFIDENCE = 0.8
+
+/** Reference stop position for calculating transformations */
+const DEFAULT_REFERENCE_STOP = 500 satisfies StopPosition
+
+// ============================================================================
+// Errors
+// ============================================================================
+
 /**
  * Error when pattern extraction fails
  */
 export class PatternExtractionError extends Data.TaggedError("PatternExtractionError")<{
-  readonly reason: string
-  readonly paletteCount: number
+  readonly message: string
+  readonly cause?: unknown
 }> {}
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * Extract transformation patterns from analyzed palettes
  *
- * Calculates ratios for each stop relative to the reference stop (500)
+ * Calculates ratios for each stop relative to the reference stop (500).
+ * Returns Either.left if pattern extraction fails, Either.right with pattern otherwise.
  */
 export const extractPatterns = (
   palettes: ReadonlyArray<AnalyzedPalette>,
-  referenceStop: StopPosition = 500
+  referenceStop: StopPosition = DEFAULT_REFERENCE_STOP
 ): Effect.Effect<TransformationPattern, PatternExtractionError> =>
   Effect.gen(function*() {
+    // Validate input
     if (palettes.length === 0) {
       return yield* Effect.fail(
         new PatternExtractionError({
-          reason: "No palettes provided",
-          paletteCount: 0
+          message: "Failed to extract patterns: no palettes provided"
         })
       )
     }
 
-    // Collect ratios for each stop position
-    const ratiosByStop: Record<StopPosition, Array<StopTransform>> = {} as Record<
-      StopPosition,
-      Array<StopTransform>
-    >
-
-    for (const position of STOP_POSITIONS) {
-      ratiosByStop[position] = []
-    }
-
-    // Analyze each palette
-    for (const palette of palettes) {
-      const referenceColor = palette.stops.find((s) => s.position === referenceStop)
-
-      if (!referenceColor) {
-        return yield* Effect.fail(
+    // Extract transforms from all palettes
+    const allTransforms = yield* Effect.forEach(
+      palettes,
+      (palette) => extractPaletteTransforms(palette, referenceStop),
+      { concurrency: "unbounded" }
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
           new PatternExtractionError({
-            reason: `Palette "${palette.name}" missing reference stop ${referenceStop}`,
-            paletteCount: palettes.length
+            message: "Failed to extract transforms from palettes",
+            cause
           })
+      )
+    )
+
+    // Group transforms by stop position
+    const transformsByStop = groupTransformsByStop(allTransforms.flat())
+
+    // Calculate aggregate transform for each stop
+    const transforms = yield* Effect.all(
+      STOP_POSITIONS.map((position) =>
+        calculateStopTransform(transformsByStop, position).pipe(
+          Effect.mapError(
+            (cause) =>
+              new PatternExtractionError({
+                message: `Failed to calculate transform for stop ${position}`,
+                cause
+              })
+          )
         )
-      }
+      )
+    ).pipe(Effect.map((entries) => new Map(Arr.zip(STOP_POSITIONS, entries))))
 
-      // Avoid division by zero
-      const refL = referenceColor.color.l === 0 ? 0.001 : referenceColor.color.l
-      const refC = referenceColor.color.c === 0 ? 0.001 : referenceColor.color.c
-
-      for (const stop of palette.stops) {
-        const lightnessMultiplier = stop.color.l / refL
-        const chromaMultiplier = stop.color.c / refC
-        const hueShiftDegrees = hueDifference(referenceColor.color.h, stop.color.h)
-
-        ratiosByStop[stop.position].push({
-          lightnessMultiplier,
-          chromaMultiplier,
-          hueShiftDegrees
-        })
-      }
-    }
-
-    // Calculate median (or mean) for each stop
-    const transforms = {} as Record<StopPosition, StopTransform>
-
-    for (const position of STOP_POSITIONS) {
-      const ratios = ratiosByStop[position]
-
-      if (ratios.length === 0) {
-        return yield* Effect.fail(
-          new PatternExtractionError({
-            reason: `No ratios calculated for stop ${position}`,
-            paletteCount: palettes.length
-          })
-        )
-      }
-
-      // Use median for robustness (or mean for simplicity with single palette)
-      const lightnessValues = ratios.map((r) => r.lightnessMultiplier)
-      const chromaValues = ratios.map((r) => r.chromaMultiplier)
-      const hueValues = ratios.map((r) => r.hueShiftDegrees)
-
-      transforms[position] = {
-        lightnessMultiplier: median(lightnessValues),
-        chromaMultiplier: median(chromaValues),
-        hueShiftDegrees: median(hueValues)
-      }
-    }
-
-    // Calculate confidence based on consistency (for future multi-palette support)
-    const confidence = palettes.length === 1 ? 0.8 : calculateConfidence(ratiosByStop)
+    // Calculate confidence
+    const confidence = palettes.length === 1
+      ? DEFAULT_SINGLE_PALETTE_CONFIDENCE
+      : calculateConfidence(transformsByStop)
 
     return {
       name: "learned-pattern",
@@ -116,39 +106,212 @@ export const extractPatterns = (
     }
   })
 
+// ============================================================================
+// Transform Extraction Helpers
+// ============================================================================
+
 /**
- * Calculate median of an array of numbers
+ * Extract transforms for all stops in a single palette
  */
-const median = (values: ReadonlyArray<number>): number => {
-  if (values.length === 0) return 0
+const extractPaletteTransforms = (
+  palette: AnalyzedPalette,
+  referenceStop: StopPosition
+): Effect.Effect<
+  ReadonlyArray<{ position: StopPosition; transform: StopTransform }>,
+  PatternExtractionError
+> =>
+  Effect.gen(function*() {
+    // Find reference color
+    const referenceColor = palette.stops.find((s) => s.position === referenceStop)
 
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(sorted.length / 2)
+    if (!referenceColor) {
+      return yield* Effect.fail(
+        new PatternExtractionError({
+          message: `Failed to extract transforms: palette "${palette.name}" missing reference stop ${referenceStop}`
+        })
+      )
+    }
 
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2
-  } else {
-    return sorted[mid]
-  }
+    // Prevent division by zero
+    const refL = Math.max(MIN_DIVISOR, referenceColor.color.l)
+    const refC = Math.max(MIN_DIVISOR, referenceColor.color.c)
+
+    // Calculate transforms for each stop
+    return palette.stops.map((stop) => ({
+      position: stop.position,
+      transform: {
+        lightnessMultiplier: stop.color.l / refL,
+        chromaMultiplier: stop.color.c / refC,
+        hueShiftDegrees: hueDifference(referenceColor.color.h, stop.color.h)
+      }
+    }))
+  })
+
+/**
+ * Group transforms by stop position using immutable operations
+ */
+const groupTransformsByStop = (
+  transforms: ReadonlyArray<{ position: StopPosition; transform: StopTransform }>
+): ReadonlyMap<StopPosition, ReadonlyArray<StopTransform>> => {
+  const groups = Arr.groupBy(transforms, (item) => String(item.position))
+
+  return new Map(
+    Object.entries(groups).map(([key, items]) => [
+      Number(key) as StopPosition,
+      items.map((item) => item.transform)
+    ])
+  )
 }
+
+/**
+ * Calculate aggregate transform for a stop position from multiple samples
+ */
+const calculateStopTransform = (
+  transformsByStop: ReadonlyMap<StopPosition, ReadonlyArray<StopTransform>>,
+  position: StopPosition
+): Effect.Effect<StopTransform, PatternExtractionError> =>
+  Effect.gen(function*() {
+    const transforms = transformsByStop.get(position)
+
+    if (!transforms || transforms.length === 0) {
+      return yield* Effect.fail(
+        new PatternExtractionError({
+          message: `Failed to calculate transform: no transforms found for stop ${position}`
+        })
+      )
+    }
+
+    // Extract values for each property
+    const lightnessValues = transforms.map((t) => t.lightnessMultiplier)
+    const chromaValues = transforms.map((t) => t.chromaMultiplier)
+    const hueValues = transforms.map((t) => t.hueShiftDegrees)
+
+    // Calculate medians
+    const lightnessMedian = yield* median(lightnessValues).pipe(
+      Effect.mapError(
+        (cause) =>
+          new PatternExtractionError({
+            message: `Failed to calculate lightness median for stop ${position}`,
+            cause
+          })
+      )
+    )
+
+    const chromaMedian = yield* median(chromaValues).pipe(
+      Effect.mapError(
+        (cause) =>
+          new PatternExtractionError({
+            message: `Failed to calculate chroma median for stop ${position}`,
+            cause
+          })
+      )
+    )
+
+    const hueMedian = yield* median(hueValues).pipe(
+      Effect.mapError(
+        (cause) =>
+          new PatternExtractionError({
+            message: `Failed to calculate hue median for stop ${position}`,
+            cause
+          })
+      )
+    )
+
+    return {
+      lightnessMultiplier: lightnessMedian,
+      chromaMultiplier: chromaMedian,
+      hueShiftDegrees: hueMedian
+    }
+  })
+
+// ============================================================================
+// Statistical Utilities
+// ============================================================================
+
+/**
+ * Calculate median of a non-empty array of numbers using functional composition
+ */
+const median = (
+  values: ReadonlyArray<number>
+): Effect.Effect<number, PatternExtractionError> =>
+  Arr.match(values, {
+    onEmpty: () =>
+      Effect.fail(
+        new PatternExtractionError({
+          message: "Failed to calculate median: array is empty"
+        })
+      ),
+    onNonEmpty: (nonEmpty) => {
+      const sorted = Arr.sort(nonEmpty, Order.number)
+      const mid = Math.floor(sorted.length / 2)
+
+      return sorted.length % 2 === 0
+        ? computeEvenMedian(sorted, mid)
+        : computeOddMedian(sorted, mid)
+    }
+  })
+
+/**
+ * Compute median for even-length arrays (average of two middle elements)
+ */
+const computeEvenMedian = (
+  sorted: ReadonlyArray<number>,
+  mid: number
+): Effect.Effect<number, PatternExtractionError> =>
+  Option.zipWith(Arr.get(sorted, mid - 1), Arr.get(sorted, mid), (a, b) => (a + b) / 2).pipe(
+    Option.match({
+      onNone: () =>
+        Effect.fail(
+          new PatternExtractionError({
+            message: "Failed to calculate median: array indexing failed"
+          })
+        ),
+      onSome: Effect.succeed
+    })
+  )
+
+/**
+ * Compute median for odd-length arrays (middle element)
+ */
+const computeOddMedian = (
+  sorted: ReadonlyArray<number>,
+  mid: number
+): Effect.Effect<number, PatternExtractionError> =>
+  Option.match(Arr.get(sorted, mid), {
+    onNone: () =>
+      Effect.fail(
+        new PatternExtractionError({
+          message: "Failed to calculate median: array indexing failed"
+        })
+      ),
+    onSome: (value) => Effect.succeed(value)
+  })
 
 /**
  * Calculate mean of an array of numbers
  */
-const mean = (values: ReadonlyArray<number>): number => {
-  if (values.length === 0) return 0
-  return values.reduce((sum, val) => sum + val, 0) / values.length
-}
+const mean = (values: ReadonlyArray<number>): number =>
+  Arr.match(values, {
+    onEmpty: () => 0,
+    onNonEmpty: (nonEmpty) => Arr.reduce(nonEmpty, 0, (sum, val) => sum + val) / nonEmpty.length
+  })
 
 /**
  * Calculate standard deviation
  */
-const stdDev = (values: ReadonlyArray<number>): number => {
-  if (values.length === 0) return 0
-  const avg = mean(values)
-  const squareDiffs = values.map((value) => Math.pow(value - avg, 2))
-  return Math.sqrt(mean(squareDiffs))
-}
+const stdDev = (values: ReadonlyArray<number>): number =>
+  Arr.match(values, {
+    onEmpty: () => 0,
+    onNonEmpty: (nonEmpty) => {
+      const avg = mean(nonEmpty)
+      const squareDiffs = Arr.map(nonEmpty, (value) => Math.pow(value - avg, 2))
+      return Math.sqrt(mean(squareDiffs))
+    }
+  })
+
+// ============================================================================
+// Confidence Calculation
+// ============================================================================
 
 /**
  * Calculate confidence based on consistency across palettes
@@ -156,26 +319,23 @@ const stdDev = (values: ReadonlyArray<number>): number => {
  * Lower variance = higher confidence
  */
 const calculateConfidence = (
-  ratiosByStop: Record<StopPosition, Array<StopTransform>>
+  transformsByStop: ReadonlyMap<StopPosition, ReadonlyArray<StopTransform>>
 ): number => {
-  let totalVariance = 0
-  let count = 0
+  const variances = STOP_POSITIONS.flatMap((position) => {
+    const transforms = transformsByStop.get(position)
+    if (!transforms || transforms.length < 2) return []
 
-  for (const position of STOP_POSITIONS) {
-    const ratios = ratiosByStop[position]
-    if (ratios.length < 2) continue
+    const lightnessValues = transforms.map((t) => t.lightnessMultiplier)
+    const chromaValues = transforms.map((t) => t.chromaMultiplier)
 
-    const lightnessValues = ratios.map((r) => r.lightnessMultiplier)
-    const chromaValues = ratios.map((r) => r.chromaMultiplier)
+    return [stdDev(lightnessValues), stdDev(chromaValues)]
+  })
 
-    totalVariance += stdDev(lightnessValues) + stdDev(chromaValues)
-    count += 2
-  }
+  if (variances.length === 0) return DEFAULT_SINGLE_PALETTE_CONFIDENCE
 
-  const avgVariance = count > 0 ? totalVariance / count : 0
+  const avgVariance = mean(variances)
 
   // Map variance to confidence [0, 1]
   // Lower variance = higher confidence
-  // This is a heuristic that can be tuned
   return Math.max(0, Math.min(1, 1 - avgVariance))
 }
