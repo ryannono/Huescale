@@ -5,10 +5,14 @@
  * without unsafe type casting.
  */
 
-import { Data, Either } from "effect"
+import { Data, Effect, Either } from "effect"
 import type { StopPosition } from "../../schemas/palette.js"
 import { STOP_POSITIONS } from "../../schemas/palette.js"
 import type { StopTransform } from "../learning/pattern.js"
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Type alias for Map of stop positions to transforms
@@ -20,72 +24,115 @@ export type StopTransformMap = ReadonlyMap<StopPosition, StopTransform>
  */
 export type StopNumberMap = ReadonlyMap<StopPosition, number>
 
+// ============================================================================
+// Errors
+// ============================================================================
+
 /**
- * Build a ReadonlyMap of stop positions to numbers
- *
- * Specialized version of buildStopMap for number values.
- *
- * @example
- * ```typescript
- * const weights = buildStopNumberMap((position) => calculateWeight(position))
- * ```
+ * Error when collection operations fail
+ */
+export class CollectionError extends Data.TaggedError("CollectionError")<{
+  readonly message: string
+  readonly cause?: unknown
+}> {}
+
+// ============================================================================
+// Public API - Map Accessors
+// ============================================================================
+
+/**
+ * Safely get transform from map, returns Either
+ */
+export const getStopTransform = (
+  map: StopTransformMap,
+  position: StopPosition
+): Either.Either<StopTransform, CollectionError> =>
+  Either.fromNullable(
+    map.get(position),
+    () => new CollectionError({ message: `Missing stop position ${position} in transform map` })
+  )
+
+/**
+ * Safely get number from map, returns Either
+ */
+export const getStopNumber = (
+  map: StopNumberMap,
+  position: StopPosition
+): Either.Either<number, CollectionError> =>
+  Either.fromNullable(
+    map.get(position),
+    () => new CollectionError({ message: `Missing stop position ${position} in number map` })
+  )
+
+/**
+ * Safely get transform from map, returns Effect
+ */
+export const getStopTransformEffect = (
+  map: StopTransformMap,
+  position: StopPosition
+): Effect.Effect<StopTransform, CollectionError> =>
+  getStopTransform(map, position).pipe(
+    Either.match({
+      onLeft: Effect.fail,
+      onRight: Effect.succeed
+    })
+  )
+
+/**
+ * Safely get number from map, returns Effect
+ */
+export const getStopNumberEffect = (
+  map: StopNumberMap,
+  position: StopPosition
+): Effect.Effect<number, CollectionError> =>
+  getStopNumber(map, position).pipe(
+    Either.match({
+      onLeft: Effect.fail,
+      onRight: Effect.succeed
+    })
+  )
+
+// ============================================================================
+// Public API - Map Builders
+// ============================================================================
+
+/**
+ * Build map of stop positions to numbers
  */
 export const buildStopNumberMap = (
   fn: (position: StopPosition) => number
 ): StopNumberMap => buildStopMap(fn)
 
 /**
- * Build a ReadonlyMap of stop positions to transforms
- *
- * Specialized version of buildStopMap for StopTransform values.
- *
- * @example
- * ```typescript
- * const transforms = buildStopTransformMap((position) => ({
- *   lightnessMultiplier: 1.0,
- *   chromaMultiplier: 1.0,
- *   hueShiftDegrees: 0
- * }))
- * ```
+ * Build map of stop positions to transforms
  */
 export const buildStopTransformMap = (
   fn: (position: StopPosition) => StopTransform
 ): StopTransformMap => buildStopMap(fn)
 
-/**
- * Build a ReadonlyMap from all stop positions using a builder function
- *
- * Uses a functional approach: map positions to entries, then construct the Map.
- * This is a type-safe alternative to casting empty objects to Record types.
- *
- * @example
- * ```typescript
- * const lightnessMultipliers = buildStopMap((position) => ({
- *   lightnessMultiplier: calculateLightness(position),
- *   chromaMultiplier: calculateChroma(position),
- *   hueShiftDegrees: calculateHue(position)
- * }))
- * ```
- */
-export const buildStopMap = <V>(
-  fn: (position: StopPosition) => V
-): ReadonlyMap<StopPosition, V> => new Map(STOP_POSITIONS.map((position) => [position, fn(position)]))
+// ============================================================================
+// Public API - Map Operations
+// ============================================================================
 
 /**
- * Convert a ReadonlyMap to a plain object for JSON serialization
- *
- * Uses reduce to build the record in a type-safe manner.
- * The return type explicitly preserves key type information.
- *
- * @example
- * ```typescript
- * const record = mapToRecord(pattern.transforms)
- * const json = JSON.stringify(record)
- * ```
+ * Transform map values while preserving keys (functor map)
  */
-export const mapToRecord = <K extends PropertyKey, V>(
-  map: ReadonlyMap<K, V>
-): Record<K, V> => {
+export const mapStopMap = <A, B>(
+  stopMap: ReadonlyMap<StopPosition, A>,
+  fn: (value: A, position: StopPosition) => B
+): ReadonlyMap<StopPosition, B> =>
+  new Map(
+    Array.from(stopMap.entries()).map(([position, value]) => [position, fn(value, position)])
+  )
+
+// ============================================================================
+// Public API - Serialization
+// ============================================================================
+
+/**
+ * Convert ReadonlyMap to Record for JSON serialization
+ */
+export const mapToRecord = <K extends PropertyKey, V>(map: ReadonlyMap<K, V>): Record<K, V> => {
   const entries = Array.from(map.entries())
   return entries.reduce<Record<K, V>>(
     (acc, [key, value]) => ({ ...acc, [key]: value }),
@@ -94,95 +141,22 @@ export const mapToRecord = <K extends PropertyKey, V>(
 }
 
 /**
- * Convert a plain object to a ReadonlyMap
+ * Convert Record to ReadonlyMap
  *
- * Requires the list of keys to ensure all expected entries are present.
- * IMPORTANT: Caller must ensure all keys exist in the record with non-undefined values.
- * Missing keys will result in map entries with undefined values, violating the type contract.
- *
- * @example
- * ```typescript
- * const record = JSON.parse(json) as Record<StopPosition, StopTransform>
- * const map = recordToMap(record, STOP_POSITIONS)
- * ```
+ * Caller must ensure all keys exist with non-undefined values.
  */
 export const recordToMap = <K extends PropertyKey, V>(
   record: Record<K, V>,
   keys: ReadonlyArray<K>
 ): ReadonlyMap<K, V> => new Map(keys.map((key) => [key, record[key]]))
 
-/**
- * Transform values in a ReadonlyMap while preserving structure
- *
- * Standard functor map operation for Maps. Applies a function to each value
- * while keeping the same keys.
- *
- * @example
- * ```typescript
- * const doubled = mapStopMap(weights, (weight) => weight * 2)
- * const withPosition = mapStopMap(
- *   transforms,
- *   (transform, position) => ({ ...transform, position })
- * )
- * ```
- */
-export const mapStopMap = <A, B>(
-  stopMap: ReadonlyMap<StopPosition, A>,
-  fn: (value: A, position: StopPosition) => B
-): ReadonlyMap<StopPosition, B> =>
-  new Map(
-    Array.from(stopMap.entries()).map(([position, value]) => [
-      position,
-      fn(value, position)
-    ])
-  )
+// ============================================================================
+// Internal Helpers
+// ============================================================================
 
 /**
- * Error when a stop position is missing from a map
+ * Build ReadonlyMap from all stop positions using builder function
  */
-export class MissingStopPositionError extends Data.TaggedError("MissingStopPositionError")<{
-  readonly position: StopPosition
-  readonly mapType: "transform" | "number"
-}> {}
-
-/**
- * Safely get a value from a StopTransformMap using functional composition
- *
- * @example
- * ```typescript
- * const result = getStopTransform(pattern.transforms, 500)
- * if (Either.isLeft(result)) {
- *   console.error(`Missing position ${result.left.position}`)
- * } else {
- *   const lightness = result.right.lightnessMultiplier
- * }
- * ```
- */
-export const getStopTransform = (
-  map: StopTransformMap,
-  position: StopPosition
-): Either.Either<StopTransform, MissingStopPositionError> =>
-  Either.fromNullable(
-    map.get(position),
-    () => new MissingStopPositionError({ position, mapType: "transform" })
-  )
-
-/**
- * Safely get a value from a StopNumberMap using functional composition
- *
- * @example
- * ```typescript
- * const result = getStopNumber(lightnessMultipliers, 500)
- * if (Either.isRight(result)) {
- *   const multiplier = result.right
- * }
- * ```
- */
-export const getStopNumber = (
-  map: StopNumberMap,
-  position: StopPosition
-): Either.Either<number, MissingStopPositionError> =>
-  Either.fromNullable(
-    map.get(position),
-    () => new MissingStopPositionError({ position, mapType: "number" })
-  )
+export const buildStopMap = <V>(
+  fn: (position: StopPosition) => V
+): ReadonlyMap<StopPosition, V> => new Map(STOP_POSITIONS.map((position) => [position, fn(position)]))

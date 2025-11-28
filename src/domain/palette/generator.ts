@@ -4,62 +4,86 @@
  * Applies transformation patterns to generate complete color palettes
  */
 
-import { Effect } from "effect"
+import { Data, Effect } from "effect"
 import type { ParseError } from "effect/ParseResult"
 import { OKLCHColor } from "../../schemas/color.js"
 import { Palette, type StopPosition } from "../../schemas/palette.js"
 import { STOP_POSITIONS } from "../../schemas/palette.js"
 import { clamp, clampToGamut, isDisplayable, normalizeHue } from "../color/conversions.js"
 import { ColorConversionError } from "../color/errors.js"
-import type { TransformationPattern } from "../learning/pattern.js"
+import type { StopTransform, TransformationPattern } from "../learning/pattern.js"
+import { getStopTransformEffect } from "../types/collections.js"
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Default name for generated palettes */
+const DEFAULT_PALETTE_NAME = "generated"
+
+// ============================================================================
+// Errors
+// ============================================================================
 
 /**
- * Generate a complete palette from a single color at a specific stop position
+ * Error when palette generation fails
+ */
+export class PaletteGenerationError extends Data.TaggedError("PaletteGenerationError")<{
+  readonly message: string
+  readonly cause?: unknown
+}> {}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Generate complete palette from a single anchor color
  *
  * Strategy:
- * 1. Take the input color as the anchor at the specified stop
- * 2. Apply the transformation pattern to generate all other stops
+ * 1. Take input color as anchor at specified stop
+ * 2. Apply transformation pattern to generate all other stops
  * 3. Clamp to displayable gamut as needed
  */
 export const generatePaletteFromStop = (
   anchorColor: OKLCHColor,
   anchorStop: StopPosition,
   pattern: TransformationPattern,
-  paletteName: string = "generated"
-): Effect.Effect<Palette, ColorConversionError | ParseError> =>
+  paletteName: string = DEFAULT_PALETTE_NAME
+): Effect.Effect<Palette, PaletteGenerationError | ColorConversionError | ParseError> =>
   Effect.gen(function*() {
-    // Get the transform for the anchor stop
-    const anchorTransform = pattern.transforms[anchorStop]
+    // Get anchor transform
+    const anchorTransform = yield* getStopTransformEffect(pattern.transforms, anchorStop).pipe(
+      Effect.mapError(
+        (cause) =>
+          new PaletteGenerationError({
+            message: `Failed to get transform for anchor stop ${anchorStop}`,
+            cause
+          })
+      )
+    )
 
-    // Generate all stops by applying relative transforms
+    // Generate all stops
     const stops = yield* Effect.forEach(
       STOP_POSITIONS,
       (targetStop) =>
         Effect.gen(function*() {
-          const targetTransform = pattern.transforms[targetStop]
+          const targetTransform = yield* getStopTransformEffect(pattern.transforms, targetStop).pipe(
+            Effect.mapError(
+              (cause) =>
+                new PaletteGenerationError({
+                  message: `Failed to get transform for target stop ${targetStop}`,
+                  cause
+                })
+            )
+          )
 
-          // Calculate relative multipliers
-          // If anchor is at 400 (L×1.182) and we want 100 (L×1.727):
-          // relative = 1.727 / 1.182 = 1.461
-          const relativeLightness = targetTransform.lightnessMultiplier / anchorTransform.lightnessMultiplier
-          const relativeChroma = targetTransform.chromaMultiplier / anchorTransform.chromaMultiplier
-          const relativeHue = targetTransform.hueShiftDegrees - anchorTransform.hueShiftDegrees
+          // Calculate and apply transforms
+          const relative = computeRelativeTransform(targetTransform, anchorTransform)
+          const transformedColor = applyRelativeTransform(anchorColor, relative)
 
-          // Apply transforms
-          const transformedL = clamp(anchorColor.l * relativeLightness, 0, 1)
-          const transformedC = Math.max(0, anchorColor.c * relativeChroma)
-
-          const transformedColor: OKLCHColor = {
-            l: transformedL,
-            c: transformedC,
-            h: normalizeHue(anchorColor.h + relativeHue),
-            alpha: anchorColor.alpha
-          }
-
-          // Check if displayable, clamp if needed
-          const displayable = yield* isDisplayable(transformedColor)
-
-          const finalColor = displayable ? transformedColor : yield* clampToGamut(transformedColor)
+          // Ensure displayable
+          const finalColor = yield* ensureDisplayable(transformedColor)
 
           return {
             position: targetStop,
@@ -69,22 +93,56 @@ export const generatePaletteFromStop = (
       { concurrency: "unbounded" }
     )
 
-    // Sort by position and validate we have exactly 10 stops
-    const sortedStops = stops.sort((a, b) => a.position - b.position)
-
-    if (sortedStops.length !== 10) {
-      return yield* Effect.fail(
-        new ColorConversionError({
-          fromSpace: "oklch",
-          toSpace: "palette",
-          color: anchorColor,
-          reason: `Expected 10 stops, got ${sortedStops.length}`
-        })
-      )
-    }
+    // Sort by position (immutable)
+    const sortedStops = [...stops].sort((a, b) => a.position - b.position)
 
     return yield* Palette({
       name: paletteName,
       stops: sortedStops
     })
   })
+
+// ============================================================================
+// Transform Helpers
+// ============================================================================
+
+/**
+ * Relative transform ratios
+ */
+interface RelativeTransform {
+  readonly lightnessRatio: number
+  readonly chromaRatio: number
+  readonly hueDelta: number
+}
+
+/**
+ * Compute relative transform ratios between target and anchor
+ */
+const computeRelativeTransform = (
+  target: StopTransform,
+  anchor: StopTransform
+): RelativeTransform => ({
+  lightnessRatio: target.lightnessMultiplier / anchor.lightnessMultiplier,
+  chromaRatio: target.chromaMultiplier / anchor.chromaMultiplier,
+  hueDelta: target.hueShiftDegrees - anchor.hueShiftDegrees
+})
+
+/**
+ * Apply relative transform to color
+ */
+const applyRelativeTransform = (color: OKLCHColor, transform: RelativeTransform): OKLCHColor => ({
+  l: clamp(color.l * transform.lightnessRatio, 0, 1),
+  c: Math.max(0, color.c * transform.chromaRatio),
+  h: normalizeHue(color.h + transform.hueDelta),
+  alpha: color.alpha
+})
+
+/**
+ * Ensure color is displayable, clamping to gamut if needed
+ */
+const ensureDisplayable = (
+  color: OKLCHColor
+): Effect.Effect<OKLCHColor, ColorConversionError> =>
+  isDisplayable(color).pipe(
+    Effect.flatMap((displayable) => (displayable ? Effect.succeed(color) : clampToGamut(color)))
+  )
