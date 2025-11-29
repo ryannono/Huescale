@@ -11,7 +11,7 @@ import type {
   PartialTransformationRequest,
   TransformationBatch,
   TransformationRequest
-} from "../../../../schemas/transformation.schema.js"
+} from "./transformation.schema.js"
 
 // ============================================================================
 // Types

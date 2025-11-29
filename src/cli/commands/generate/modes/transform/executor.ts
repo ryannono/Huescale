@@ -9,7 +9,6 @@ import { applyOpticalAppearance, oklchToHex, parseColorStringToOKLCH } from "../
 import { type ColorSpace, ColorSpace as decodeColorSpace } from "../../../../../domain/color/color.schema.js"
 import { ConfigService } from "../../../../../services/ConfigService.js"
 import { BatchResult, ISOTimestampSchema } from "../../../../../services/PaletteService/palette.schema.js"
-import type { TransformationBatch, TransformationRequest } from "../../../../schemas/transformation.schema.js"
 import {
   buildExportConfig,
   displayPalette,
@@ -17,6 +16,7 @@ import {
   executePaletteExport,
   generateAndDisplay
 } from "../../output/formatter.js"
+import type { TransformationBatch, TransformationRequest } from "./transformation.schema.js"
 
 // ============================================================================
 // Types

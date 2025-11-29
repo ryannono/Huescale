@@ -15,13 +15,13 @@ import type {
   PartialTransformationRequest,
   TransformationBatch,
   TransformationRequest
-} from "../../../schemas/transformation.schema.js"
+} from "../modes/transform/transformation.schema.js"
 import {
   PartialTransformationBatch as PartialTransformationBatchDecoder,
   PartialTransformationRequest as PartialTransformationRequestDecoder,
   TransformationBatch as TransformationBatchDecoder,
   TransformationRequest as TransformationRequestDecoder
-} from "../../../schemas/transformation.schema.js"
+} from "../modes/transform/transformation.schema.js"
 
 /**
  * Parse a single transformation string: ref>target::stop

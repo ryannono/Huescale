@@ -11,7 +11,7 @@ import {
   PartialTransformationRequestSchema,
   TransformationBatchSchema,
   TransformationRequestSchema
-} from "../../../schemas/transformation.schema.js"
+} from "./transform/transformation.schema.js"
 
 // ============================================================================
 // Component Schemas

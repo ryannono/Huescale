@@ -5,7 +5,7 @@
  * StopPosition keys, ensuring type safety without unsafe casting.
  */
 
-import { Data, Effect, Either } from "effect"
+import { Data, Effect } from "effect"
 import type { StopPosition } from "../palette/palette.schema.js"
 import { STOP_POSITIONS } from "../palette/palette.schema.js"
 import type { StopTransform } from "../pattern/pattern.js"
@@ -41,41 +41,25 @@ export class CollectionError extends Data.TaggedError("CollectionError")<{
 // ============================================================================
 
 /**
- * Safely get transform from map, returns Either
+ * Safely get transform from map
  */
 export const getStopTransform = (
   map: StopTransformMap,
   position: StopPosition
-): Either.Either<StopTransform, CollectionError> =>
-  Either.fromNullable(
-    map.get(position),
-    () => new CollectionError({ message: `Missing stop position ${position} in transform map` })
+): Effect.Effect<StopTransform, CollectionError> =>
+  Effect.fromNullable(map.get(position)).pipe(
+    Effect.mapError(() => new CollectionError({ message: `Missing stop position ${position} in transform map` }))
   )
 
 /**
- * Safely get number from map, returns Either
+ * Safely get number from map
  */
 export const getStopNumber = (
   map: StopNumberMap,
   position: StopPosition
-): Either.Either<number, CollectionError> =>
-  Either.fromNullable(
-    map.get(position),
-    () => new CollectionError({ message: `Missing stop position ${position} in number map` })
-  )
-
-/**
- * Safely get transform from map, returns Effect
- */
-export const getStopTransformEffect = (
-  map: StopTransformMap,
-  position: StopPosition
-): Effect.Effect<StopTransform, CollectionError> =>
-  getStopTransform(map, position).pipe(
-    Either.match({
-      onLeft: Effect.fail,
-      onRight: Effect.succeed
-    })
+): Effect.Effect<number, CollectionError> =>
+  Effect.fromNullable(map.get(position)).pipe(
+    Effect.mapError(() => new CollectionError({ message: `Missing stop position ${position} in number map` }))
   )
 
 // ============================================================================

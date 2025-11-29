@@ -9,7 +9,7 @@ import type { ParseError } from "effect/ParseResult"
 import { clamp, clampToGamut, ColorError, isDisplayable, normalizeHue } from "../color/color.js"
 import { OKLCHColor } from "../color/color.schema.js"
 import type { StopTransform, TransformationPattern } from "../pattern/pattern.js"
-import { getStopTransformEffect } from "../types/collections.js"
+import { getStopTransform } from "../types/collections.js"
 import { Palette, type StopPosition } from "./palette.schema.js"
 import { STOP_POSITIONS } from "./palette.schema.js"
 
@@ -49,7 +49,7 @@ export const generatePaletteFromStop = (
     const name = paletteName
 
     // Get anchor transform
-    const anchorTransform = yield* getStopTransformEffect(
+    const anchorTransform = yield* getStopTransform(
       pattern.transforms,
       anchorStop
     ).pipe(
@@ -67,7 +67,7 @@ export const generatePaletteFromStop = (
       STOP_POSITIONS,
       (targetStop) =>
         Effect.gen(function*() {
-          const targetTransform = yield* getStopTransformEffect(
+          const targetTransform = yield* getStopTransform(
             pattern.transforms,
             targetStop
           ).pipe(

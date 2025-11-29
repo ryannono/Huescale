@@ -7,7 +7,7 @@
 
 import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
-import { Data, Effect, Either } from "effect"
+import { Data, Effect } from "effect"
 import { parseColorStringToOKLCH } from "../../domain/color/color.js"
 import { smoothPattern } from "../../domain/math/interpolation.js"
 import { ExamplePaletteRequest } from "../../domain/palette/palette.schema.js"
@@ -112,7 +112,7 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
               })
           )
         )
-        return yield* smoothPatternEffect(pattern, source)
+        return yield* smoothPatternWithError(pattern, source)
       })
 
     /**
@@ -168,7 +168,7 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         )
 
-        const smoothedPattern = yield* smoothPatternEffect(pattern, directoryPath)
+        const smoothedPattern = yield* smoothPatternWithError(pattern, directoryPath)
 
         return {
           palettes,
@@ -211,22 +211,20 @@ const parseJson = (
   })
 
 /**
- * Smooth pattern and convert Either to Effect
+ * Smooth pattern with error wrapping
  */
-const smoothPatternEffect = (
+const smoothPatternWithError = (
   pattern: TransformationPattern,
   source: string
 ): Effect.Effect<TransformationPattern, PatternLoadError> =>
-  Either.match(smoothPattern(pattern), {
-    onLeft: (error) =>
-      Effect.fail(
-        new PatternLoadError({
-          message: `Failed to smooth pattern from: ${source}`,
-          cause: error
-        })
-      ),
-    onRight: Effect.succeed
-  })
+  smoothPattern(pattern).pipe(
+    Effect.mapError((error) =>
+      new PatternLoadError({
+        message: `Failed to smooth pattern from: ${source}`,
+        cause: error
+      })
+    )
+  )
 
 /**
  * Join directory and file name into validated FilePath

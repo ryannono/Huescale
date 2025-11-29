@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "@effect/vitest"
-import { Either } from "effect"
+import { Effect } from "effect"
 import { clamp, lerp, smoothPattern } from "../../../../src/domain/math/interpolation.js"
 import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
 import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
@@ -107,7 +107,7 @@ describe("Interpolation Math", () => {
 
     // Helper to safely get transform or throw
     const getTransformOrThrow = (pattern: TransformationPattern, position: StopPosition) =>
-      Either.getOrThrow(getStopTransform(pattern.transforms, position))
+      Effect.runSync(getStopTransform(pattern.transforms, position))
 
     // Helper to compute consecutive differences for a property
     const computeConsecutiveDiffs = (
@@ -122,7 +122,7 @@ describe("Interpolation Math", () => {
     describe("lightness progression", () => {
       it("should create perfectly linear lightness multipliers", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // Reference stop should be exactly 1.0
         expect(getTransformOrThrow(smoothed, 500).lightnessMultiplier).toBe(1.0)
@@ -136,7 +136,7 @@ describe("Interpolation Math", () => {
 
       it("should have descending lightness from 100 to 1000", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // Each stop should be darker than the previous
         for (let i = 0; i < STOP_POSITIONS.length - 1; i++) {
@@ -148,7 +148,7 @@ describe("Interpolation Math", () => {
 
       it("should normalize around reference stop 500", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
         expect(getTransformOrThrow(smoothed, 500).lightnessMultiplier).toBe(1.0)
 
         // The quadratic curve should pass through learned endpoint values
@@ -165,7 +165,7 @@ describe("Interpolation Math", () => {
 
       it("should have higher multipliers at lower stops (lighter)", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         expect(getTransformOrThrow(smoothed, 100).lightnessMultiplier).toBeGreaterThan(1.0)
         expect(getTransformOrThrow(smoothed, 200).lightnessMultiplier).toBeGreaterThan(1.0)
@@ -174,7 +174,7 @@ describe("Interpolation Math", () => {
 
       it("should have lower multipliers at higher stops (darker)", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         expect(getTransformOrThrow(smoothed, 600).lightnessMultiplier).toBeLessThan(1.0)
         expect(getTransformOrThrow(smoothed, 700).lightnessMultiplier).toBeLessThan(1.0)
@@ -187,7 +187,7 @@ describe("Interpolation Math", () => {
     describe("chroma curve", () => {
       it("should have reference stop at 1.0 chroma", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // Reference stop should be 1.0
         expect(getTransformOrThrow(smoothed, 500).chromaMultiplier).toBe(1.0)
@@ -205,7 +205,7 @@ describe("Interpolation Math", () => {
 
       it("should create smooth quadratic curve", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // Verify all chroma values are in expected range
         for (const pos of STOP_POSITIONS) {
@@ -223,7 +223,7 @@ describe("Interpolation Math", () => {
 
       it("should have non-negative chroma multipliers", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         for (const pos of STOP_POSITIONS) {
           expect(getTransformOrThrow(smoothed, pos).chromaMultiplier).toBeGreaterThanOrEqual(0)
@@ -232,7 +232,7 @@ describe("Interpolation Math", () => {
 
       it("should create smooth parabolic curve (no sudden jumps)", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // Check that differences between consecutive stops don't vary wildly
         const diffs = computeConsecutiveDiffs(smoothed, (t) => t.chromaMultiplier).map(Math.abs)
@@ -248,7 +248,7 @@ describe("Interpolation Math", () => {
     describe("hue consistency", () => {
       it("should use consistent hue across all stops", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         const hue = getTransformOrThrow(smoothed, 100).hueShiftDegrees
 
@@ -268,7 +268,7 @@ describe("Interpolation Math", () => {
           transforms: new Map(pattern.transforms).set(100, { ...transform100, hueShiftDegrees: 100 })
         }
 
-        const smoothed = Either.getOrThrow(smoothPattern(modifiedPattern))
+        const smoothed = Effect.runSync(smoothPattern(modifiedPattern))
         const consistentHue = getTransformOrThrow(smoothed, 500).hueShiftDegrees
 
         // Consistent hue should not be affected by the outlier
@@ -277,7 +277,7 @@ describe("Interpolation Math", () => {
 
       it("should handle even number of values (average of two middle values)", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         // With 10 stops, median should be average of 5th and 6th values
         // Values: -5, -4, -3, -2, -1, 0, 2, 3, 4, 5
@@ -290,14 +290,14 @@ describe("Interpolation Math", () => {
     describe("metadata", () => {
       it("should update pattern name with -smoothed suffix", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         expect(smoothed.name).toBe("test-pattern-smoothed")
       })
 
       it("should preserve other pattern properties", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         expect(smoothed.referenceStop).toBe(pattern.referenceStop)
         expect(smoothed.metadata).toEqual(pattern.metadata)
@@ -305,7 +305,7 @@ describe("Interpolation Math", () => {
 
       it("should have transforms for all 10 stop positions", () => {
         const pattern = createMockPattern(500)
-        const smoothed = Either.getOrThrow(smoothPattern(pattern))
+        const smoothed = Effect.runSync(smoothPattern(pattern))
 
         expect(smoothed.transforms.size).toBe(10)
         for (const pos of STOP_POSITIONS) {

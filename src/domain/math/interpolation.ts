@@ -2,11 +2,17 @@
  * Interpolation and smoothing utilities for color palette generation
  */
 
-import { Array as Arr, Data, Either, Order } from "effect"
+import { Array as Arr, Data, Effect, Order } from "effect"
 import type { StopPosition } from "../palette/palette.schema.js"
 import { STOP_POSITIONS } from "../palette/palette.schema.js"
 import type { StopTransform, TransformationPattern } from "../pattern/pattern.js"
-import { buildStopNumberMap, getStopNumber, getStopTransform, type StopTransformMap } from "../types/collections.js"
+import {
+  buildStopNumberMap,
+  CollectionError,
+  getStopNumber,
+  getStopTransform,
+  type StopTransformMap
+} from "../types/collections.js"
 
 // ============================================================================
 // Errors
@@ -42,27 +48,25 @@ const STOP_RANGE = DARKEST_STOP - LIGHTEST_STOP // 900
  * - Lightness is perfectly linear
  * - Chroma follows a smooth curve
  * - Hue is consistent (median value)
- *
- * Returns Either.left if pattern data is malformed, Either.right with smoothed pattern otherwise.
  */
 export const smoothPattern = (
   pattern: TransformationPattern
-): Either.Either<TransformationPattern, InterpolationError> =>
-  Either.gen(function*() {
-    const [lightnessMultipliers, chromaMultipliers, consistentHue] = yield* Either.all([
+): Effect.Effect<TransformationPattern, InterpolationError> =>
+  Effect.gen(function*() {
+    const [lightnessMultipliers, chromaMultipliers, consistentHue] = yield* Effect.all([
       calculateLinearLightness(pattern),
       smoothChromaCurve(pattern),
       calculateConsistentHue(pattern)
     ]).pipe(
-      Either.mapLeft((cause) => new InterpolationError({ message: "Failed to smooth pattern", cause }))
+      Effect.mapError((cause) => new InterpolationError({ message: "Failed to smooth pattern", cause }))
     )
 
-    const transforms = yield* buildTransformMapFromEithers(
+    const transforms = yield* buildTransformMap(
       lightnessMultipliers,
       chromaMultipliers,
       consistentHue
     ).pipe(
-      Either.mapLeft((cause) => new InterpolationError({ message: "Failed to build transform map", cause }))
+      Effect.mapError((cause) => new InterpolationError({ message: "Failed to build transform map", cause }))
     )
 
     return {
@@ -83,21 +87,18 @@ export const clamp = (value: number, min: number, max: number): number => Math.m
 // ============================================================================
 
 /** Build a StopTransformMap by combining lightness, chroma, and hue values */
-const buildTransformMapFromEithers = (
+const buildTransformMap = (
   lightnessMultipliers: ReadonlyMap<StopPosition, number>,
   chromaMultipliers: ReadonlyMap<StopPosition, number>,
   hueShiftDegrees: number
-): Either.Either<StopTransformMap, InterpolationError> =>
-  Either.all(
+): Effect.Effect<StopTransformMap, InterpolationError | CollectionError> =>
+  Effect.all(
     STOP_POSITIONS.map((position) =>
-      Either.all([
+      Effect.all([
         getStopNumber(lightnessMultipliers, position),
         getStopNumber(chromaMultipliers, position)
       ]).pipe(
-        Either.mapLeft((cause) =>
-          new InterpolationError({ message: `Failed to get value at position ${position}`, cause })
-        ),
-        Either.map(([lightness, chroma]) => ({
+        Effect.map(([lightness, chroma]) => ({
           position,
           transform: {
             lightnessMultiplier: lightness,
@@ -108,43 +109,33 @@ const buildTransformMapFromEithers = (
       )
     )
   ).pipe(
-    Either.map((entries) => new Map(entries.map(({ position, transform }) => [position, transform])))
+    Effect.map((entries) => new Map(entries.map(({ position, transform }) => [position, transform])))
   )
 
 /** Calculate lightness multipliers using quadratic interpolation */
 const calculateLinearLightness = (
   pattern: TransformationPattern
-): Either.Either<ReadonlyMap<StopPosition, number>, InterpolationError> =>
-  createQuadraticInterpolation(pattern, (t) => t.lightnessMultiplier).pipe(
-    Either.mapLeft((cause) => new InterpolationError({ message: "Failed to calculate lightness multipliers", cause }))
-  )
+): Effect.Effect<ReadonlyMap<StopPosition, number>, InterpolationError | CollectionError> =>
+  createQuadraticInterpolation(pattern, (t) => t.lightnessMultiplier)
 
 /** Smooth chroma curve using quadratic interpolation */
 const smoothChromaCurve = (
   pattern: TransformationPattern
-): Either.Either<ReadonlyMap<StopPosition, number>, InterpolationError> =>
-  createQuadraticInterpolation(pattern, (t) => t.chromaMultiplier).pipe(
-    Either.mapLeft((cause) => new InterpolationError({ message: "Failed to smooth chroma curve", cause }))
-  )
+): Effect.Effect<ReadonlyMap<StopPosition, number>, InterpolationError | CollectionError> =>
+  createQuadraticInterpolation(pattern, (t) => t.chromaMultiplier)
 
 /** Calculate consistent hue shift using median of all values */
 const calculateConsistentHue = (
   pattern: TransformationPattern
-): Either.Either<number, InterpolationError> =>
-  Either.all(
+): Effect.Effect<number, InterpolationError | CollectionError> =>
+  Effect.all(
     STOP_POSITIONS.map((pos) =>
-      Either.map(getStopTransform(pattern.transforms, pos), (t) => t.hueShiftDegrees).pipe(
-        Either.mapLeft((cause) =>
-          new InterpolationError({ message: `Failed to get hue shift at position ${pos}`, cause })
-        )
+      getStopTransform(pattern.transforms, pos).pipe(
+        Effect.map((t) => t.hueShiftDegrees)
       )
     )
   ).pipe(
-    Either.flatMap((values) =>
-      median(values).pipe(
-        Either.mapLeft((cause) => new InterpolationError({ message: "Failed to calculate median hue", cause }))
-      )
-    )
+    Effect.flatMap(median)
   )
 
 // ============================================================================
@@ -158,13 +149,12 @@ type TransformPropertyExtractor = (transform: StopTransform) => number
 const createQuadraticInterpolation = (
   pattern: TransformationPattern,
   extractProperty: TransformPropertyExtractor
-): Either.Either<ReadonlyMap<StopPosition, number>, InterpolationError> =>
-  Either.all([
+): Effect.Effect<ReadonlyMap<StopPosition, number>, CollectionError> =>
+  Effect.all([
     getStopTransform(pattern.transforms, LIGHTEST_STOP),
     getStopTransform(pattern.transforms, DARKEST_STOP)
   ]).pipe(
-    Either.mapLeft((cause) => new InterpolationError({ message: "Failed to get endpoint transforms", cause })),
-    Either.map(([transform100, transform1000]) => {
+    Effect.map(([transform100, transform1000]) => {
       const value100 = extractProperty(transform100)
       const value500 = REFERENCE_MULTIPLIER
       const value1000 = extractProperty(transform1000)
@@ -191,9 +181,9 @@ const normalizePosition = (position: StopPosition): number => (position - LIGHTE
 // ============================================================================
 
 /** Calculate median of a non-empty array of numbers using functional composition */
-const median = (values: ReadonlyArray<number>): Either.Either<number, InterpolationError> =>
+const median = (values: ReadonlyArray<number>): Effect.Effect<number, InterpolationError> =>
   Arr.match(values, {
-    onEmpty: () => Either.left(new InterpolationError({ message: "Failed to calculate median: array is empty" })),
+    onEmpty: () => Effect.fail(new InterpolationError({ message: "Failed to calculate median: array is empty" })),
     onNonEmpty: (nonEmpty) => {
       const sorted = Arr.sort(nonEmpty, Order.number)
       const mid = Math.floor(sorted.length / 2)
@@ -206,22 +196,20 @@ const median = (values: ReadonlyArray<number>): Either.Either<number, Interpolat
 const computeEvenMedian = (
   sorted: ReadonlyArray<number>,
   mid: number
-): Either.Either<number, InterpolationError> =>
-  Either.all([
-    Either.fromOption(Arr.get(sorted, mid - 1), () =>
-      new InterpolationError({ message: "Array indexing failed during median calculation" })),
-    Either.fromOption(Arr.get(sorted, mid), () =>
-      new InterpolationError({ message: "Array indexing failed during median calculation" }))
-  ]).pipe(Either.map(([a, b]) =>
-    (a + b) / 2
-  ))
+): Effect.Effect<number, InterpolationError> =>
+  Effect.all([
+    Arr.get(sorted, mid - 1),
+    Arr.get(sorted, mid)
+  ]).pipe(
+    Effect.mapError(() => new InterpolationError({ message: "Array indexing failed during median calculation" })),
+    Effect.map(([a, b]) => (a + b) / 2)
+  )
 
 /** Compute median for odd-length arrays using middle element */
 const computeOddMedian = (
   sorted: ReadonlyArray<number>,
   mid: number
-): Either.Either<number, InterpolationError> =>
-  Either.fromOption(
-    Arr.get(sorted, mid),
-    () => new InterpolationError({ message: "Array indexing failed during median calculation" })
+): Effect.Effect<number, InterpolationError> =>
+  Arr.get(sorted, mid).pipe(
+    Effect.mapError(() => new InterpolationError({ message: "Array indexing failed during median calculation" }))
   )

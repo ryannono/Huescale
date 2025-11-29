@@ -15,11 +15,20 @@ import { PatternService } from "../services/PatternService/index.js"
 /**
  * Main production layer with all services and platform dependencies
  *
- * Layer composition:
- * 1. ConfigService - no dependencies
- * 2. PatternService - needs NodeContext (FileSystem, Path)
- * 3. ExportService - needs NodeContext (FileSystem, Path)
- * 4. PaletteService - needs PatternService, ConfigService
+ * Dependency graph (automatically resolved by Effect):
+ *
+ *   NodeContext (FileSystem, Path)
+ *        │
+ *        ├──► PatternService (file I/O for patterns)
+ *        │         │
+ *        │         └──────────┐
+ *        │                    │
+ *        └──► ExportService   │
+ *                             │
+ *   ConfigService ────────────┼──► PaletteService
+ *   (no deps)                 │
+ *                             │
+ *                    (Pattern + Config)
  */
 export const MainLive = Layer.mergeAll(
   ConfigService.Default,

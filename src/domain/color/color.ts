@@ -13,13 +13,13 @@
  */
 
 import * as culori from "culori"
-import { Data, Effect, Either, Option, pipe } from "effect"
+import { Data, Effect, Option, pipe } from "effect"
 import type { ParseError } from "effect/ParseResult"
 import {
+  HEX_WITHOUT_HASH_PATTERN,
   HexColor,
   type HexColor as HexColorType,
   type OKLABColor,
-  OKLABColor as OKLABColorDecoder,
   type OKLCHColor,
   type RGBColor
 } from "./color.schema.js"
@@ -39,9 +39,6 @@ export class ColorError extends Data.TaggedError("ColorError")<{
 // ============================================================================
 // Constants
 // ============================================================================
-
-/** Regex pattern for hex colors without # prefix */
-const HEX_WITHOUT_HASH_PATTERN = /^[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/
 
 /** Lightness threshold below which transformations may not work well (near black) */
 const MIN_VIABLE_LIGHTNESS = 0.05
@@ -65,16 +62,14 @@ const UNKNOWN_COLOR_MODE = "unknown"
 export const parseColorStringToOKLCH = (
   colorString: string
 ): Effect.Effect<OKLCHColor, ColorError> =>
-  Effect.gen(function*() {
-    const normalized = normalizeColorString(colorString)
-    const parsed = yield* parseCuloriColor(normalized).pipe(
-      Option.match({
-        onNone: () => Effect.fail(colorError(`Could not parse color string with culori: ${colorString}`)),
-        onSome: Effect.succeed
-      })
-    )
-    return yield* culoriToOklch(parsed, parsed.mode ?? UNKNOWN_COLOR_MODE)
-  })
+  pipe(
+    normalizeColorString(colorString),
+    parseCuloriColor,
+    Option.match({
+      onNone: () => Effect.fail(colorError(`Could not parse color string with culori: ${colorString}`)),
+      onSome: (parsed) => culoriToOklch(parsed, parsed.mode ?? UNKNOWN_COLOR_MODE)
+    })
+  )
 
 // ============================================================================
 // Public API - Conversions
@@ -86,13 +81,16 @@ export const parseColorStringToOKLCH = (
 export const oklchToHex = (
   color: OKLCHColor
 ): Effect.Effect<HexColorType, ColorError | ParseError> =>
-  convertWithCulori(
-    () => culori.formatHex(toCuloriOklch(color)),
-    (hex): hex is string => hex !== undefined,
-    (hex) => (color.alpha === 1 ? hex.slice(0, 7) : hex),
-    "Could not convert OKLCH to hex",
-    "Culori could not format OKLCH as hex"
-  )(color).pipe(Effect.flatMap(HexColor))
+  pipe(
+    convertWithCulori(
+      () => culori.formatHex(toCuloriOklch(color)),
+      (hex): hex is string => hex !== undefined,
+      (hex) => Effect.succeed(color.alpha === 1 ? hex.slice(0, 7) : hex),
+      "Could not convert OKLCH to hex",
+      "Culori could not format OKLCH as hex"
+    )(color),
+    Effect.flatMap(HexColor)
+  )
 
 /**
  * Convert OKLCH to RGB
@@ -127,19 +125,14 @@ export const rgbToOKLCH = (
  */
 export const oklchToOKLAB = (
   color: OKLCHColor
-): Effect.Effect<OKLABColor, ColorError | ParseError> =>
-  pipe(
-    Effect.try({
-      try: () => culori.oklab(toCuloriOklch(color)),
-      catch: (error) => colorError("Could not convert OKLCH to OKLAB", error)
-    }),
-    Effect.filterOrFail(
-      (oklab): oklab is culori.Oklab => oklab !== undefined,
-      () => colorError("Culori could not convert OKLCH to OKLAB")
-    ),
-    Effect.map(fromCuloriOklab),
-    Effect.flatMap(OKLABColorDecoder)
-  )
+): Effect.Effect<OKLABColor, ColorError> =>
+  convertWithCulori(
+    () => culori.oklab(toCuloriOklch(color)),
+    (oklab): oklab is culori.Oklab => oklab !== undefined,
+    fromCuloriOklab,
+    "Could not convert OKLCH to OKLAB",
+    "Culori could not convert OKLCH to OKLAB"
+  )(color)
 
 /**
  * Convert OKLAB to OKLCH
@@ -181,17 +174,92 @@ export const clampToGamut = (
       (clamped): clamped is culori.Oklch => clamped !== undefined && clamped.mode === "oklch",
       () => colorError("Culori could not clamp color to gamut")
     ),
-    Effect.map((clamped) => ({
-      l: clamped.l ?? color.l,
-      c: clamped.c ?? color.c,
-      h: clamped.h ?? color.h,
-      alpha: clamped.alpha ?? color.alpha
-    }))
+    Effect.map((clamped) => mergeOklchWithFallback(clamped, color))
   )
 
 // ============================================================================
 // Public API - Transformations
 // ============================================================================
+
+/**
+ * Handle achromatic edge cases for optical appearance transformation.
+ * Returns Some(color) if an edge case applies, None otherwise.
+ */
+const handleAchromaticCases = (
+  reference: OKLCHColor,
+  target: OKLCHColor
+): Option.Option<OKLCHColor> => {
+  // When reference has no chroma, keep target's hue but make it achromatic
+  if (isAchromatic(reference)) {
+    return Option.some({
+      l: reference.l,
+      c: 0,
+      h: normalizeHue(target.h),
+      alpha: reference.alpha
+    })
+  }
+
+  // When target has no hue, preserve reference's hue since target has no opinion
+  if (isAchromatic(target)) {
+    return Option.some({
+      l: reference.l,
+      c: reference.c,
+      h: normalizeHue(reference.h),
+      alpha: reference.alpha
+    })
+  }
+
+  return Option.none()
+}
+
+/**
+ * Create the base transformation: reference L+C with target H
+ */
+const createBaseTransform = (
+  reference: OKLCHColor,
+  target: OKLCHColor
+): OKLCHColor => ({
+  l: reference.l,
+  c: reference.c,
+  h: normalizeHue(target.h),
+  alpha: reference.alpha
+})
+
+/** Check if chroma was completely lost during clamping */
+const hasLostChroma = (original: OKLCHColor, clamped: OKLCHColor): boolean => clamped.c === 0 && original.c > 0
+
+/**
+ * Clamp color to gamut, failing if chroma is lost entirely.
+ */
+const clampWithChromaCheck = (
+  color: OKLCHColor
+): Effect.Effect<OKLCHColor, ColorError> =>
+  pipe(
+    clampToGamut(color),
+    Effect.filterOrFail(
+      (clamped) => !hasLostChroma(color, clamped),
+      () =>
+        colorError(
+          "Transformed color is out of gamut and clamping reduced chroma to 0, losing hue information"
+        )
+    )
+  )
+
+/**
+ * Ensure a color fits in gamut, clamping if necessary.
+ */
+const ensureGamutWithChroma = (
+  color: OKLCHColor
+): Effect.Effect<OKLCHColor, ColorError> =>
+  pipe(
+    isDisplayable(color),
+    Effect.flatMap(
+      Effect.if({
+        onTrue: () => Effect.succeed(color),
+        onFalse: () => clampWithChromaCheck(color)
+      })
+    )
+  )
 
 /**
  * Apply optical appearance from reference color to target color
@@ -217,59 +285,46 @@ export const applyOpticalAppearance = (
   reference: OKLCHColor,
   target: OKLCHColor
 ): Effect.Effect<OKLCHColor, ColorError> =>
-  Effect.gen(function*() {
-    // Handle achromatic reference (gray reference)
-    // When reference has no chroma, we keep the target's hue but make it achromatic
-    if (isAchromatic(reference)) {
-      return {
-        l: reference.l,
-        c: 0,
-        h: normalizeHue(target.h),
-        alpha: reference.alpha
-      }
-    }
+  pipe(
+    handleAchromaticCases(reference, target),
+    Option.match({
+      onSome: Effect.succeed,
+      onNone: () => ensureGamutWithChroma(createBaseTransform(reference, target))
+    })
+  )
 
-    // Handle achromatic target (gray target)
-    // When target has no hue, preserve the reference's hue since target has no opinion
-    if (isAchromatic(target)) {
-      return {
-        l: reference.l,
-        c: reference.c,
-        h: normalizeHue(reference.h),
-        alpha: reference.alpha
-      }
-    }
+/** Check if lightness is within viable range for transformation */
+const hasViableLightness = (color: OKLCHColor): boolean =>
+  color.l >= MIN_VIABLE_LIGHTNESS && color.l <= MAX_VIABLE_LIGHTNESS
 
-    // Create transformed color: reference L+C, target H
-    const transformed: OKLCHColor = {
-      l: reference.l,
-      c: reference.c,
-      h: normalizeHue(target.h),
-      alpha: reference.alpha
-    }
+/** Calculate chroma loss ratio between original and clamped color */
+const chromaLossRatio = (original: OKLCHColor, clamped: OKLCHColor): number =>
+  original.c > 0 ? (original.c - clamped.c) / original.c : 0
 
-    // Check if color is displayable in sRGB
-    const displayable = yield* isDisplayable(transformed)
+/** Check if chroma loss is acceptable */
+const hasAcceptableChromaLoss = (original: OKLCHColor, clamped: OKLCHColor): boolean =>
+  chromaLossRatio(original, clamped) < MAX_CHROMA_LOSS_RATIO
 
-    if (displayable) {
-      return transformed
-    }
+/** Check viability based on clamp result */
+const checkClampViability = (
+  reference: OKLCHColor,
+  testTransform: OKLCHColor
+): Effect.Effect<boolean, never> =>
+  pipe(
+    clampToGamut(testTransform),
+    Effect.map((clamped) => hasAcceptableChromaLoss(reference, clamped)),
+    Effect.catchAll(() => Effect.succeed(false))
+  )
 
-    // If not displayable, clamp to gamut by reducing chroma
-    // This preserves hue but reduces saturation until the color fits in sRGB
-    const clamped = yield* clampToGamut(transformed)
-
-    // If clamping resulted in zero chroma, fail with hue loss error
-    if (clamped.c === 0 && transformed.c > 0) {
-      return yield* Effect.fail(
-        colorError(
-          "Transformed color is out of gamut and clamping reduced chroma to 0, losing hue information"
-        )
-      )
-    }
-
-    return clamped
-  })
+/** Check displayability, falling back to clamp check */
+const checkDisplayabilityOrClamp = (
+  reference: OKLCHColor,
+  testTransform: OKLCHColor
+): Effect.Effect<boolean, never> =>
+  pipe(
+    isDisplayable(testTransform),
+    Effect.flatMap((displayable) => displayable ? Effect.succeed(true) : checkClampViability(reference, testTransform))
+  )
 
 /**
  * Check if a transformation is viable without significant quality loss
@@ -277,51 +332,19 @@ export const applyOpticalAppearance = (
 export const isTransformationViable = (
   reference: OKLCHColor,
   target: OKLCHColor
-): Effect.Effect<boolean, ColorError> =>
-  Effect.gen(function*() {
-    // Very dark or very light reference colors may not transform well
-    // because they have limited chroma range
-    if (
-      reference.l < MIN_VIABLE_LIGHTNESS ||
-      reference.l > MAX_VIABLE_LIGHTNESS
-    ) {
-      return false
-    }
+): Effect.Effect<boolean, never> => {
+  // Early exit: lightness out of viable range
+  if (!hasViableLightness(reference)) {
+    return Effect.succeed(false)
+  }
 
-    // If both colors are achromatic, transformation is just a lightness copy (always viable)
-    if (isAchromatic(reference) && isAchromatic(target)) {
-      return true
-    }
+  // Early exit: both achromatic means simple lightness copy (always viable)
+  if (isAchromatic(reference) && isAchromatic(target)) {
+    return Effect.succeed(true)
+  }
 
-    // Create a test transformation to check gamut
-    const testTransform: OKLCHColor = {
-      l: reference.l,
-      c: reference.c,
-      h: normalizeHue(target.h),
-      alpha: reference.alpha
-    }
-
-    const displayable = yield* isDisplayable(testTransform)
-
-    // If directly displayable, definitely viable
-    if (displayable) {
-      return true
-    }
-
-    // If not displayable, clamp and check how much chroma was lost
-    const clampResult = yield* Effect.either(clampToGamut(testTransform))
-
-    // Pattern match on Either to determine viability
-    return Either.match(clampResult, {
-      // If clamping failed, transformation is not viable
-      onLeft: () => false,
-      // If clamping succeeded, check chroma loss ratio
-      onRight: (clamped) => {
-        const chromaLoss = reference.c > 0 ? (reference.c - clamped.c) / reference.c : 0
-        return chromaLoss < MAX_CHROMA_LOSS_RATIO
-      }
-    })
-  })
+  return checkDisplayabilityOrClamp(reference, createBaseTransform(reference, target))
+}
 
 // ============================================================================
 // Helpers
@@ -353,14 +376,14 @@ const culoriToOklch = (
           `Culori could not convert parsed color to OKLCH from ${sourceMode}`
         )
     ),
-    Effect.map(fromCuloriOklch)
+    Effect.flatMap(fromCuloriOklch)
   )
 
-/** Generic helper for culori color conversions */
+/** Generic helper for culori color conversions with Effect-returning transform */
 const convertWithCulori = <TInput, TOutput, TResult>(
   convert: (input: TInput) => TOutput | undefined,
   isValid: (result: TOutput | undefined) => result is TOutput,
-  transform: (result: TOutput) => TResult,
+  transform: (result: TOutput) => Effect.Effect<TResult, ColorError>,
   tryErrorMessage: string,
   filterErrorMessage: string
 ) =>
@@ -371,7 +394,7 @@ const convertWithCulori = <TInput, TOutput, TResult>(
       catch: (error) => colorError(tryErrorMessage, error)
     }),
     Effect.filterOrFail(isValid, () => colorError(filterErrorMessage)),
-    Effect.map(transform)
+    Effect.flatMap(transform)
   )
 
 // ============================================================================
@@ -392,6 +415,17 @@ export const hueDifference = (h1: number, h2: number): number => {
 
 /** Clamp a value between min and max */
 export const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value))
+
+/** Merge OKLCH color with fallback values for undefined properties */
+const mergeOklchWithFallback = (
+  primary: Partial<OKLCHColor>,
+  fallback: OKLCHColor
+): OKLCHColor => ({
+  l: primary.l ?? fallback.l,
+  c: primary.c ?? fallback.c,
+  h: primary.h ?? fallback.h,
+  alpha: primary.alpha ?? fallback.alpha
+})
 
 /** Extract error message from unknown error */
 const formatErrorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error)
@@ -423,29 +457,53 @@ const toCuloriRgb = (color: RGBColor): culori.Rgb => ({
   alpha: color.alpha
 })
 
-/** Extract OKLCHColor from culori oklch result */
-const fromCuloriOklch = (oklch: culori.Oklch): OKLCHColor => ({
-  l: oklch.l ?? 0,
-  c: oklch.c ?? 0,
-  h: oklch.h ?? 0,
-  alpha: oklch.alpha ?? 1
-})
+/** Type guard for defined value */
+const isDefined = <T>(value: T | undefined): value is T => value !== undefined
 
-/** Extract OKLABColor from culori oklab result */
-const fromCuloriOklab = (oklab: culori.Oklab): OKLABColor => ({
-  l: oklab.l ?? 0,
-  a: oklab.a ?? 0,
-  b: oklab.b ?? 0,
-  alpha: oklab.alpha ?? 1
-})
+/** Format culori color properties for error messages */
+const formatColorProps = <T extends object, K extends keyof T>(
+  color: T,
+  keys: ReadonlyArray<K>
+): string => keys.map((key) => `${String(key)}=${color[key]}`).join(", ")
 
-/** Extract RGBColor from culori rgb result */
-const fromCuloriRgb = (rgb: culori.Rgb): RGBColor => ({
-  r: Math.round((rgb.r ?? 0) * 255),
-  g: Math.round((rgb.g ?? 0) * 255),
-  b: Math.round((rgb.b ?? 0) * 255),
-  alpha: rgb.alpha ?? 1
-})
+/** Extract OKLCHColor from culori oklch result with validation */
+const fromCuloriOklch = (oklch: culori.Oklch): Effect.Effect<OKLCHColor, ColorError> =>
+  isDefined(oklch.l) && isDefined(oklch.c) && isDefined(oklch.h)
+    ? Effect.succeed({
+      l: oklch.l,
+      c: oklch.c,
+      h: oklch.h,
+      alpha: oklch.alpha ?? 1
+    })
+    : Effect.fail(
+      colorError(`Culori returned incomplete OKLCH color: ${formatColorProps(oklch, ["l", "c", "h"])}`)
+    )
+
+/** Extract OKLABColor from culori oklab result with validation */
+const fromCuloriOklab = (oklab: culori.Oklab): Effect.Effect<OKLABColor, ColorError> =>
+  isDefined(oklab.l) && isDefined(oklab.a) && isDefined(oklab.b)
+    ? Effect.succeed({
+      l: oklab.l,
+      a: oklab.a,
+      b: oklab.b,
+      alpha: oklab.alpha ?? 1
+    })
+    : Effect.fail(
+      colorError(`Culori returned incomplete OKLAB color: ${formatColorProps(oklab, ["l", "a", "b"])}`)
+    )
+
+/** Extract RGBColor from culori rgb result with validation */
+const fromCuloriRgb = (rgb: culori.Rgb): Effect.Effect<RGBColor, ColorError> =>
+  isDefined(rgb.r) && isDefined(rgb.g) && isDefined(rgb.b)
+    ? Effect.succeed({
+      r: Math.round(rgb.r * 255),
+      g: Math.round(rgb.g * 255),
+      b: Math.round(rgb.b * 255),
+      alpha: rgb.alpha ?? 1
+    })
+    : Effect.fail(
+      colorError(`Culori returned incomplete RGB color: ${formatColorProps(rgb, ["r", "g", "b"])}`)
+    )
 
 /** Normalize color string by adding # prefix for hex colors */
 const normalizeColorString = (colorString: string): string =>

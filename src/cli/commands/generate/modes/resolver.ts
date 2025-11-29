@@ -10,12 +10,6 @@ import type { ParseError } from "effect/ParseResult"
 import { ColorError } from "../../../../domain/color/color.js"
 import { ColorString } from "../../../../domain/color/color.schema.js"
 import { StopPosition } from "../../../../domain/palette/palette.schema.js"
-import type {
-  PartialTransformationBatch,
-  PartialTransformationRequest,
-  TransformationBatch,
-  TransformationRequest
-} from "../../../schemas/transformation.schema.js"
 import { parseBatchPairsInput } from "../parsers/batch-parser.js"
 import {
   isTransformationSyntax,
@@ -32,6 +26,12 @@ import {
   SinglePaletteMode,
   SingleTransformMode
 } from "./resolver.schema.js"
+import type {
+  PartialTransformationBatch,
+  PartialTransformationRequest,
+  TransformationBatch,
+  TransformationRequest
+} from "./transform/transformation.schema.js"
 
 // ============================================================================
 // Types

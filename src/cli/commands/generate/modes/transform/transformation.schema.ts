@@ -7,8 +7,8 @@
  */
 
 import { Schema } from "effect"
-import { ColorStringSchema } from "../../domain/color/color.schema.js"
-import { StopPositionSchema } from "../../domain/palette/palette.schema.js"
+import { ColorStringSchema } from "../../../../../domain/color/color.schema.js"
+import { StopPositionSchema } from "../../../../../domain/palette/palette.schema.js"
 
 // ============================================================================
 // Component Schemas

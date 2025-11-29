@@ -79,7 +79,7 @@ const OptionalAlpha = Schema.optionalWith(AlphaSchema, { default: () => 1 })
 // ============================================================================
 
 /** Pattern for hex color without # prefix */
-const HEX_WITHOUT_HASH_PATTERN = /^[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/
+export const HEX_WITHOUT_HASH_PATTERN = /^[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/
 
 /** Normalize color string by adding # prefix for bare hex values */
 const normalizeColorString = (value: string): string => HEX_WITHOUT_HASH_PATTERN.test(value) ? `#${value}` : value

@@ -20,7 +20,6 @@ import {
   promptForStop,
   promptForTargetColors
 } from "../../prompts.js"
-import type { TransformationBatch, TransformationRequest } from "../../schemas/transformation.schema.js"
 import { handleBatchMode } from "./modes/batch/executor.js"
 import { ModeResolver } from "./modes/resolver.js"
 import type { ExecutionMode, ModeDetectionResult } from "./modes/resolver.schema.js"
@@ -31,6 +30,7 @@ import {
   handleOneToManyTransformation,
   handleSingleTransformation
 } from "./modes/transform/executor.js"
+import type { TransformationBatch, TransformationRequest } from "./modes/transform/transformation.schema.js"
 import { parseBatchPairsInput } from "./parsers/batch-parser.js"
 
 // ============================================================================

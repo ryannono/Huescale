@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Either } from "effect"
+import { Effect } from "effect"
 import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
 import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
 import type { AnalyzedPalette, TransformationPattern } from "../../../../src/domain/pattern/pattern.js"
@@ -32,7 +32,7 @@ describe("Pattern Extraction Statistics", () => {
   const getTransformOrThrow = (
     pattern: TransformationPattern,
     position: StopPosition
-  ) => Either.getOrThrow(getStopTransform(pattern.transforms, position))
+  ) => Effect.runSync(getStopTransform(pattern.transforms, position))
 
   describe("extractPatterns", () => {
     describe("basic extraction", () => {
@@ -173,35 +173,32 @@ describe("Pattern Extraction Statistics", () => {
 
     describe("error handling", () => {
       it.effect("should fail when given empty palette array", () =>
-        Effect.gen(function*() {
-          const result = yield* Effect.either(extractPatterns([]))
+        extractPatterns([]).pipe(
+          Effect.flip,
+          Effect.map((error) => {
+            expect(error).toBeInstanceOf(PatternExtractionError)
+            expect(error.message).toContain("no palettes provided")
+          })
+        ))
 
-          expect(Either.isLeft(result)).toBe(true)
-          if (Either.isLeft(result)) {
-            expect(result.left).toBeInstanceOf(PatternExtractionError)
-            expect(result.left.message).toContain("no palettes provided")
-          }
-        }))
+      it.effect("should fail when palette missing reference stop", () => {
+        const incompletePalette: AnalyzedPalette = {
+          name: "incomplete",
+          stops: [
+            { position: 100, color: { l: 0.9, c: 0.08, h: 250, alpha: 1 } },
+            { position: 200, color: { l: 0.8, c: 0.1, h: 250, alpha: 1 } }
+            // Missing stop 500
+          ]
+        }
 
-      it.effect("should fail when palette missing reference stop", () =>
-        Effect.gen(function*() {
-          const incompletePalette: AnalyzedPalette = {
-            name: "incomplete",
-            stops: [
-              { position: 100, color: { l: 0.9, c: 0.08, h: 250, alpha: 1 } },
-              { position: 200, color: { l: 0.8, c: 0.1, h: 250, alpha: 1 } }
-              // Missing stop 500
-            ]
-          }
-
-          const result = yield* Effect.either(extractPatterns([incompletePalette]))
-
-          expect(Either.isLeft(result)).toBe(true)
-          if (Either.isLeft(result)) {
-            expect(result.left).toBeInstanceOf(PatternExtractionError)
-            expect(result.left.message).toContain("Failed to extract transforms")
-          }
-        }))
+        return extractPatterns([incompletePalette]).pipe(
+          Effect.flip,
+          Effect.map((error) => {
+            expect(error).toBeInstanceOf(PatternExtractionError)
+            expect(error.message).toContain("Failed to extract transforms")
+          })
+        )
+      })
 
       it.effect("should handle division by zero for lightness", () =>
         Effect.gen(function*() {
