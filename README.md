@@ -1,316 +1,146 @@
 # OKLCH Palette Generator
 
-> A CLI tool for generating perceptually uniform color palettes using OKLCH color space and Effect-ts functional programming.
+A CLI tool for generating perceptually uniform 10-stop color palettes using the OKLCH color space.
 
+[![npm version](https://img.shields.io/npm/v/oklch-palette-generator.svg)](https://www.npmjs.com/package/oklch-palette-generator)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![Effect-ts](https://img.shields.io/badge/Effect--ts-3.19-purple.svg)](https://effect.website/)
 [![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen.svg)]()
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)]()
 
-## Overview
+<img width="497" alt="OKLCH Palette Generator Demo" src="https://github.com/user-attachments/assets/16a47ef7-646a-4853-8c08-ef3e601e2397" />
 
-OKLCH Palette Generator is a CLI tool that generates complete 10-stop color palettes (100-1000) from a single color input. It uses machine learning-inspired pattern extraction to ensure consistent, perceptually uniform color progressions across all palette stops.
+## Features
 
-<img width="497" height="746" alt="image" src="https://github.com/user-attachments/assets/16a47ef7-646a-4853-8c08-ef3e601e2397" />
-
-### Key Features
-
-- **Perceptually Uniform**: Uses OKLCH color space for consistent lightness and chroma progression
-- **Pattern Learning**: Extracts and applies transformation patterns from example palettes
-- **Multiple Execution Modes**:
-  - Single palette generation
-  - Batch palette generation (multiple colors at once)
-  - Color transformations (apply one color's optical properties to another's hue)
-  - One-to-many transformations (apply to multiple target colors)
-- **Flexible Input**: Any stop position (100-1000) as anchor point
-- **Multiple Output Formats**: hex, rgb, oklch, oklab
-- **Export Options**: JSON file or clipboard
-- **Type-Safe**: Built with Effect-ts for comprehensive compile-time and runtime validation
-- **Interactive & Direct Modes**: Auto-detection with error recovery
+- **Perceptually uniform** - Uses OKLCH color space for consistent lightness/chroma progression
+- **Pattern learning** - Extracts transformation patterns from example palettes
+- **Multiple modes** - Single, batch, and transformation modes (all combinable)
+- **Flexible input** - Any stop position (100-1000) as anchor; supports hex, rgb, hsl, oklch, oklab
+- **Multiple exports** - Console, JSON file, or clipboard
 
 ## Installation
 
-### Use without installing (recommended)
-
-Run the CLI directly without installation using npx or pnpm:
+### Use directly (no install)
 
 ```bash
-# Using npx (npm)
+# npm
 npx oklch-palette-generator generate
 
-# Using pnpm dlx
+# pnpm
 pnpm dlx oklch-palette-generator generate
 
-# Short alias
-npx oklch-palette generate
+# yarn
+yarn dlx oklch-palette-generator generate
+
+# bun
+bunx oklch-palette-generator generate
 ```
 
-### Global Installation
-
-Install globally to use the command anywhere:
+### Install globally
 
 ```bash
-# Using npm
+# npm
 npm install -g oklch-palette-generator
 
-# Using pnpm
+# pnpm
 pnpm add -g oklch-palette-generator
 
-# Using yarn
+# yarn
 yarn global add oklch-palette-generator
+
+# bun
+bun add -g oklch-palette-generator
 ```
 
-After installation, you can use either:
-```bash
-oklch-palette-generator generate
-# or the shorter alias
-oklch-palette generate
-```
-
-### Development Setup
-
-To contribute or modify the source code:
-
-```bash
-# Clone repository
-git clone https://github.com/ryannono/color-palette-generator
-cd color-palette-generator
-
-# Install dependencies (requires pnpm)
-pnpm install
-
-# Run CLI in development
-pnpm dev
-
-# Build for production
-pnpm build
-```
-
-### Requirements
-
-- Node.js 18+
-- pnpm 10.14+ (for development)
+After installing, use `oklch-palette generate` or `oklch-palette-generator generate`.
 
 ## Quick Start
 
-### Interactive Mode
-
-Run without arguments for interactive prompts:
+### Interactive
 
 ```bash
-npx oklch-palette-generator generate
-# or use the short alias
-npx oklch-palette generate
+oklch-palette generate
 ```
 
-You'll be guided through:
-1. Input mode selection (single, batch, or transform)
-2. Color input
-3. Stop position (which stop your color represents)
-4. Output format
-5. Export options
-
-### Direct Mode
-
-Provide all options via CLI flags:
+### Direct
 
 ```bash
-# Generate palette from color at stop 500
-npx oklch-palette generate --color "#2D72D2" --stop 500 --format hex --name "blue-palette"
+# Single palette
+oklch-palette generate -c "#2D72D2" -s 500 -f hex -n "blue"
 
-# Short flags
-npx oklch-palette generate -c 2D72D2 -s 700 -f oklch -n "dark-blue"
+# Batch palettes
+oklch-palette generate -c "#2D72D2::500,#DB2C6F::600" -f hex
 
-# Export to JSON
-npx oklch-palette generate -c "#2D72D2" -s 500 -f hex --export json --path ./output/palette.json
-
-# Copy to clipboard
-npx oklch-palette generate -c "#2D72D2" -s 500 -f hex --export clipboard
+# Single transformation
+oklch-palette generate -c "#2D72D2>#FF6B6B::500" -f hex
 ```
 
-### Batch Mode
+## Usage
 
-Generate multiple palettes at once:
+### Modes
 
-```bash
-# Comma-separated (color::stop pairs)
-npx oklch-palette generate -c "#2D72D2::500,#163F79::700" -f hex
+| Mode | Syntax | Description |
+|------|--------|-------------|
+| **Single** | `#2D72D2` | Generate palette from one color |
+| **Batch** | `#2D72D2::500,#DB2C6F::600` | Multiple palettes at once |
+| **Single Transform** | `#2D72D2>#FF6B6B::500` | Apply ref's appearance to target's hue |
+| **One-to-Many Transform** | `#2D72D2>(#FF6B6B,#238551)::500` | Transform ref to multiple targets |
+| **Batch Transform** | `#2D72D2>#FF6B6B::500,#48AFF0>#238551::600` | Multiple transformations at once |
+| **Batch One-to-Many** | `#2D72D2>(#FF6B6B,#238551)::500,#48AFF0>(#DB2C6F,#FFB366)::600` | Multiple one-to-many transforms |
 
-# Multi-line input (interactive paste mode)
-npx oklch-palette generate
-# Select "Paste multiple colors"
-# Enter:
-# #2D72D2::500
-# #163F79::700
-# #48AFF0::300
-```
+All modes support comma-separated or multi-line input for batch processing.
 
-### Color Transformation Mode
+### Options
 
-Apply the optical appearance (lightness + chroma) from one color to another color's hue:
-
-```bash
-# Single transformation: ref>target::stop
-npx oklch-palette generate -c "#2D72D2>#FF6B6B::500" -f hex
-
-# One-to-many: ref>(target1,target2,target3)::stop
-npx oklch-palette generate -c "#2D72D2>(#FF6B6B,#238551,#FFB366)::500" -f hex
-
-# Batch transformations (comma or newline separated)
-npx oklch-palette generate -c "#2D72D2>#FF6B6B::500,#48AFF0>#238551::600" -f hex
-```
-
-> **Note for contributors:** If you're developing locally, replace `npx oklch-palette` with `pnpm dev` in all examples above.
-
-## Usage Details
-
-### Color Input Formats
-
-Supports any format parseable by [culori](https://culorijs.org/):
-
-- **Hex**: `#2D72D2` or `2D72D2` (# is optional)
-- **RGB**: `rgb(45, 114, 210)`
-- **HSL**: `hsl(214, 65%, 50%)`
-- **OKLCH**: `oklch(57% 0.15 259)`
-- **OKLAB**: `oklab(57% -0.05 -0.14)`
-- And more...
+| Flag | Short | Description | Default |
+|------|-------|-------------|---------|
+| `--color` | `-c` | Color input (see modes above) | - |
+| `--stop` | `-s` | Stop position (100-1000) | 500 |
+| `--format` | `-f` | Output format: `hex`, `rgb`, `oklch`, `oklab` | hex |
+| `--name` | `-n` | Palette name | - |
+| `--export` | `-e` | Export type: `none`, `json`, `clipboard` | none |
+| `--path` | `-p` | JSON output path | ./palette.json |
 
 ### Stop Positions
 
-Valid stop positions: **100, 200, 300, 400, 500, 600, 700, 800, 900, 1000**
+| Stop | Description |
+|------|-------------|
+| 100 | Lightest |
+| 500 | Medium (reference) |
+| 1000 | Darkest |
 
-- 100: Lightest
-- 500: Medium (typically used as reference)
-- 1000: Almost black
+## How It Works
 
-Your input color can represent any stop. The generator will create the other 9 stops using learned transformation patterns.
-
-### Output Formats
-
-- `hex`: `#2d72d2`
-- `rgb`: `rgb(45, 114, 210)`
-- `oklch`: `oklch(57.23% 0.154 258.7)`
-- `oklab`: `oklab(57.23% -0.051 -0.144)`
-
-### Export Options
-
-- `none`: Display only (no export)
-- `clipboard`: Copy JSON to clipboard
-- `json`: Save to file (prompts for path if not provided)
-
-## Architecture
-
-### Technology Stack
-
-- **Effect-ts v3.19+**: Functional programming with type-safe services and error handling
-- **@effect/schema**: Runtime validation that matches TypeScript types
-- **@effect/cli**: Type-safe command-line interface
-- **@effect/platform**: Cross-platform FileSystem and Path services
-- **culori**: Color space conversions and parsing
-- **@clack/prompts**: Beautiful interactive CLI prompts
-
-
-### How It Works
-
-#### 1. Pattern Learning
-
-The generator analyzes example palettes to learn transformation rules:
-
-```typescript
-// For each stop, calculate relative transformations from reference (500)
-// Example: If 100 has L=0.95 and 500 has L=0.55:
-//   lightnessMultiplier[100] = 0.95 / 0.55 = 1.727
-
-interface StopTransform {
-  lightnessMultiplier: number  // Multiply reference L by this
-  chromaMultiplier: number     // Multiply reference C by this
-  hueShiftDegrees: number      // Add this to reference H
-}
-```
-
-Pattern extraction allows:
-- Learning from real-world palettes
-- Consistent transformations across all stops
-- Flexibility to adapt to different design systems
-- Mathematical smoothing for perceptual uniformity
-  
-
-#### 2. Pattern Application
-
-Given an anchor color at any stop, apply relative transformations:
-
-```typescript
-// If anchor is blue (#2D72D2) at stop 400:
-// To generate stop 100, apply: transform[100] / transform[400]
-// relativeLightness = 1.727 / 1.182 = 1.461
-// newL = anchorL × 1.461
-```
-
-#### 3. Gamut Correction
-
-Colors are automatically clamped to displayable sRGB gamut while preserving perceptual characteristics.
-
-#### 4. Color Transformation
-
-Apply optical appearance from reference to target:
-
-```typescript
-// reference = #2D72D2 (blue)
-// target = #FF6B6B (red)
-// Result: Red hue with blue's lightness and chroma
-// Creates perceptually similar colors across different hues
-```
+1. **Pattern extraction** - Analyzes example palettes to learn lightness/chroma/hue transformations relative to the reference stop (500)
+2. **Pattern application** - Applies learned multipliers to generate all 10 stops from your anchor color
+3. **Gamut correction** - Clamps colors to displayable sRGB while preserving perceptual characteristics
 
 ## Development
 
-### Scripts
-
 ```bash
-# Development
-pnpm dev                 # Run CLI in dev mode
-pnpm check              # Type check
+git clone https://github.com/ryannono/oklch-palette-generator
+cd oklch-palette-generator
+pnpm install
 
-# Testing
-pnpm test               # Run tests
-pnpm coverage           # Generate coverage report
-
-# Build
-pnpm build              # Full production build
-pnpm build-esm          # TypeScript compilation
-pnpm build-cjs          # CommonJS transformation
-pnpm build-annotate     # Pure call annotations
-
-# Quality
-pnpm lint               # Run ESLint
-pnpm lint-fix           # Fix linting issues
+pnpm dev        # Run CLI
+pnpm test       # Run tests
+pnpm check      # Type check
+pnpm build      # Production build
 ```
 
-### Testing
+**Requirements:** Node.js 18+, pnpm 10.14+
 
-Comprehensive test suite with **174 passing tests** and **95% coverage**:
+## Tech Stack
 
-```bash
-# Run all tests
-pnpm test
-
-# Watch mode
-pnpm test --watch
-
-# Coverage report
-pnpm coverage
-```
+- [Effect-ts](https://effect.website/) - Functional TypeScript framework
+- [culori](https://culorijs.org/) - Color space conversions
+- [@clack/prompts](https://github.com/natemoo-re/clack) - Interactive CLI prompts
+- [@effect/cli](https://effect.website/) - Type-safe CLI builder
 
 ## License
 
 MIT
 
-## Acknowledgments
-
-- [Effect-ts](https://effect.website/) - Functional TypeScript framework
-- [culori](https://culorijs.org/) - Color space conversions
-- [Björn Ottosson](https://bottosson.github.io/posts/oklab/) - OKLCH/OKLAB color space
-- [clack](https://github.com/natemoo-re/clack) - Beautiful CLI prompts
-
 ---
 
-**Built with Effect-ts** | **Perceptually uniform palettes** | **Type-safe from end to end**
+**Perceptually uniform palettes, type-safe from end to end.**

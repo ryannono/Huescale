@@ -24,8 +24,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ryannono/color-palette-generator"
+    "url": "git+https://github.com/ryannono/oklch-palette-generator.git"
   },
+  "bugs": {
+    "url": "https://github.com/ryannono/oklch-palette-generator/issues"
+  },
+  "homepage": "https://github.com/ryannono/oklch-palette-generator#readme",
   "publishConfig": {
     "access": "public"
   },
