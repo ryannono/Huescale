@@ -1,13 +1,17 @@
+// ============================================================================
+// Generate Command Handler
+// ============================================================================
+
 /**
- * Main command handler for palette generation
- *
- * Uses ModeResolver to detect execution mode and routes to appropriate handler
+ * Main command handler for palette generation.
+ * Uses ModeResolver to detect execution mode and routes to appropriate handler.
  */
 
 import * as clack from "@clack/prompts"
-import { Effect, Option as O } from "effect"
-import type { TransformationBatch, TransformationInput } from "../../../schemas/transformation.js"
+import { Array as Arr, Effect, Option as O, pipe } from "effect"
+import type { StopPosition } from "../../../domain/palette/palette.schema.js"
 import { ConfigService } from "../../../services/ConfigService.js"
+import type { BatchResult, PaletteResult } from "../../../services/PaletteService/palette.schema.js"
 import {
   promptForAnotherTransformation,
   promptForBatchInputMode,
@@ -16,9 +20,12 @@ import {
   promptForStop,
   promptForTargetColors
 } from "../../prompts.js"
+import type { TransformationBatch, TransformationRequest } from "../../schemas/transformation.schema.js"
 import { handleBatchMode } from "./modes/batch/executor.js"
 import { ModeResolver } from "./modes/resolver.js"
+import type { ExecutionMode, ModeDetectionResult } from "./modes/resolver.schema.js"
 import { handleSingleMode } from "./modes/single/executor.js"
+import { completePartialTransformations } from "./modes/transform/completer.js"
 import {
   handleBatchTransformations,
   handleOneToManyTransformation,
@@ -26,295 +33,369 @@ import {
 } from "./modes/transform/executor.js"
 import { parseBatchPairsInput } from "./parsers/batch-parser.js"
 
-/**
- * Main handler for the generate command
- *
- * Detects mode (batch vs single) and delegates to appropriate handler
- */
-export const handleGenerate = ({
-  colorOpt,
-  exportOpt,
-  exportPath,
-  formatOpt,
-  nameOpt,
-  patternOpt,
-  stopOpt
-}: {
-  colorOpt: O.Option<string>
-  exportOpt: O.Option<string>
-  exportPath: O.Option<string>
-  formatOpt: O.Option<string>
-  nameOpt: O.Option<string>
-  patternOpt: O.Option<string>
-  stopOpt: O.Option<number>
-}) =>
+// ============================================================================
+// Types
+// ============================================================================
+
+interface GenerateOptions {
+  readonly colorOpt: O.Option<string>
+  readonly exportOpt: O.Option<string>
+  readonly exportPath: O.Option<string>
+  readonly formatOpt: O.Option<string>
+  readonly nameOpt: O.Option<string>
+  readonly patternOpt: O.Option<string>
+  readonly stopOpt: O.Option<number>
+}
+
+interface ModeHandlerContext {
+  readonly exportOpt: O.Option<string>
+  readonly exportPath: O.Option<string>
+  readonly formatOpt: O.Option<string>
+  readonly nameOpt: O.Option<string>
+  readonly pattern: string
+}
+
+/** Union of possible interactive mode results */
+type InteractiveResult = BatchResult | ReadonlyArray<PaletteResult>
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const INTRO_MESSAGE = "Color Palette Generator"
+const PAIR_SEPARATOR = "::"
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/** Main handler for the generate command. */
+export const handleGenerate = (options: GenerateOptions) =>
   Effect.gen(function*() {
-    // Get pattern from option or config
+    const pattern = yield* resolvePattern(options.patternOpt)
+    const detection = yield* detectExecutionMode(options)
+    const context: ModeHandlerContext = {
+      exportOpt: options.exportOpt,
+      exportPath: options.exportPath,
+      formatOpt: options.formatOpt,
+      nameOpt: options.nameOpt,
+      pattern
+    }
+
+    if (shouldShowIntro(detection, options)) {
+      clack.intro(INTRO_MESSAGE)
+    }
+
+    const interactiveResult = yield* tryInteractiveMode(detection, options, context)
+    if (O.isSome(interactiveResult)) {
+      clack.outro("Done!")
+      return interactiveResult.value
+    }
+
+    const result = yield* handleExecutionMode(detection.mode, options, context)
+    clack.outro("Done!")
+    return result
+  })
+
+// ============================================================================
+// Pattern Resolution
+// ============================================================================
+
+const resolvePattern = (patternOpt: O.Option<string>) =>
+  Effect.gen(function*() {
     const config = yield* ConfigService
-    const pattern = yield* O.match(patternOpt, {
+    return yield* O.match(patternOpt, {
       onNone: () => config.getPatternSource(),
       onSome: (p) => Effect.succeed(p)
     })
-
-    // Use ModeResolver to detect execution mode
-    const resolver = yield* ModeResolver
-    const detection = yield* resolver.detectMode({
-      colorOpt,
-      stopOpt,
-      formatOpt,
-      nameOpt,
-      patternOpt,
-      exportOpt,
-      exportPath
-    })
-
-    const { isInteractive, mode } = detection
-
-    // Determine if we need to show intro (any prompts will be displayed)
-    const willPrompt = isInteractive ||
-      O.isNone(formatOpt) ||
-      O.isNone(nameOpt) ||
-      (mode._tag === "SinglePalette" && O.isNone(stopOpt)) ||
-      (mode._tag === "SingleTransform" && mode.input.stop === undefined) ||
-      (mode._tag === "ManyTransform" && !mode.stop) ||
-      (mode._tag === "BatchTransform" &&
-        mode.transformations.some((t) => t.stop === undefined))
-
-    // Show intro before any prompts
-    if (willPrompt) {
-      clack.intro("🎨 Color Palette Generator")
-    }
-
-    // Handle interactive transformation prompts
-    if (isInteractive && mode._tag === "SinglePalette" && O.isNone(colorOpt)) {
-      const inputMode = yield* promptForBatchInputMode()
-
-      if (inputMode === "paste") {
-        const pasteInput = yield* promptForBatchPaste()
-        const parsedPairs = yield* parseBatchPairsInput(pasteInput)
-        return yield* handleBatchMode({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          isInteractive,
-          nameOpt,
-          pairs: parsedPairs,
-          pattern
-        })
-      } else if (inputMode === "transform") {
-        // Interactive transformation mode - support multiple transformations
-        const allTransformations = []
-
-        let continueAdding = true
-        while (continueAdding) {
-          const referenceColor = yield* promptForReferenceColor()
-          const targetColors = yield* promptForTargetColors()
-          const stop = yield* promptForStop()
-
-          // Build transformation input
-          if (targetColors.length === 1) {
-            allTransformations.push({
-              reference: referenceColor,
-              target: targetColors[0]!,
-              stop
-            })
-          } else {
-            allTransformations.push({
-              reference: referenceColor,
-              targets: targetColors,
-              stop
-            })
-          }
-
-          // Ask if user wants to add another
-          continueAdding = yield* promptForAnotherTransformation()
-        }
-
-        return yield* handleBatchTransformations({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          inputs: allTransformations,
-          isInteractive,
-          nameOpt,
-          pattern
-        })
-      }
-      // else: cycle mode falls through to single palette mode
-    }
-
-    // Route to appropriate handler based on detected mode
-    let result
-    switch (mode._tag) {
-      case "SinglePalette":
-        result = yield* handleSingleMode({
-          colorOpt,
-          exportOpt,
-          exportPath,
-          formatOpt,
-          nameOpt,
-          pattern,
-          stopOpt
-        })
-        break
-
-      case "BatchPalettes":
-        result = yield* handleBatchMode({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          isInteractive,
-          nameOpt,
-          pairs: mode.pairs.map((p) => ({
-            color: p.color,
-            stop: p.stop,
-            raw: `${p.color}::${p.stop}`
-          })),
-          pattern
-        })
-        break
-
-      case "SingleTransform": {
-        // Prompt for stop if missing
-        let input: TransformationInput
-        if (
-          mode.input.reference &&
-          mode.input.target &&
-          mode.input.stop !== undefined
-        ) {
-          input = {
-            reference: mode.input.reference,
-            target: mode.input.target,
-            stop: mode.input.stop
-          }
-        } else if (mode.input.reference && mode.input.target) {
-          const stop = yield* promptForStop()
-          input = {
-            reference: mode.input.reference,
-            target: mode.input.target,
-            stop
-          }
-        } else {
-          // This shouldn't happen as parser validates required fields
-          throw new Error("Invalid transformation: missing reference or target")
-        }
-
-        result = yield* handleSingleTransformation({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          input,
-          isInteractive: isInteractive || mode.input.stop === undefined,
-          nameOpt,
-          pattern
-        })
-        break
-      }
-
-      case "ManyTransform": {
-        // Prompt for stop if missing
-        const stop = mode.stop ?? (yield* promptForStop())
-
-        result = yield* handleOneToManyTransformation({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          input: {
-            reference: mode.reference,
-            targets: mode.targets,
-            stop
-          },
-          isInteractive: isInteractive || !mode.stop,
-          nameOpt,
-          pattern
-        })
-        break
-      }
-
-      case "BatchTransform": {
-        // Complete any partial transformations by prompting for missing stops
-        const completedInputs: Array<TransformationInput | TransformationBatch> = []
-        let hadPartial = false
-        let transformationIndex = 0
-
-        for (const transformation of mode.transformations) {
-          transformationIndex++
-
-          if ("targets" in transformation && transformation.targets) {
-            // One-to-many transformation
-            if (
-              transformation.reference &&
-              transformation.targets.length > 0 &&
-              transformation.stop !== undefined
-            ) {
-              // Already complete
-              completedInputs.push({
-                reference: transformation.reference,
-                targets: transformation.targets,
-                stop: transformation.stop
-              })
-            } else if (
-              transformation.reference &&
-              transformation.targets.length > 0
-            ) {
-              // Missing stop - prompt for it with context
-              hadPartial = true
-              const transformationDesc = `${transformation.reference}>(${transformation.targets.join(", ")})`
-              const stop = yield* promptForStop(
-                transformationDesc,
-                transformationIndex
-              )
-              completedInputs.push({
-                reference: transformation.reference,
-                targets: transformation.targets,
-                stop
-              })
-            }
-          } else if ("target" in transformation && transformation.target) {
-            // Single transformation
-            if (
-              transformation.reference &&
-              transformation.target &&
-              transformation.stop !== undefined
-            ) {
-              // Already complete
-              completedInputs.push({
-                reference: transformation.reference,
-                target: transformation.target,
-                stop: transformation.stop
-              })
-            } else if (transformation.reference && transformation.target) {
-              // Missing stop - prompt for it with context
-              hadPartial = true
-              const transformationDesc = `${transformation.reference}>${transformation.target}`
-              const stop = yield* promptForStop(
-                transformationDesc,
-                transformationIndex
-              )
-              completedInputs.push({
-                reference: transformation.reference,
-                target: transformation.target,
-                stop
-              })
-            }
-          }
-        }
-
-        result = yield* handleBatchTransformations({
-          exportOpt,
-          exportPath,
-          formatOpt,
-          inputs: completedInputs,
-          isInteractive: isInteractive || hadPartial,
-          nameOpt,
-          pattern
-        })
-        break
-      }
-    }
-
-    // Show outro after everything is complete
-    clack.outro("Done! ✓")
-
-    return result
   })
+
+// ============================================================================
+// Mode Detection
+// ============================================================================
+
+const detectExecutionMode = (options: GenerateOptions) =>
+  Effect.gen(function*() {
+    const resolver = yield* Effect.provide(ModeResolver, ModeResolver.Default)
+    return yield* resolver.detectMode({
+      colorOpt: options.colorOpt,
+      stopOpt: options.stopOpt,
+      formatOpt: options.formatOpt,
+      nameOpt: options.nameOpt,
+      patternOpt: options.patternOpt,
+      exportOpt: options.exportOpt,
+      exportPath: options.exportPath
+    })
+  })
+
+// ============================================================================
+// Intro Display Logic
+// ============================================================================
+
+const shouldShowIntro = (detection: ModeDetectionResult, options: GenerateOptions): boolean => {
+  const { isInteractive, mode } = detection
+  const hasUndefinedOptions = O.isNone(options.formatOpt) || O.isNone(options.nameOpt)
+  const modeRequiresPrompt = getModePromptRequirement(mode, options.stopOpt)
+  return isInteractive || hasUndefinedOptions || modeRequiresPrompt
+}
+
+const getModePromptRequirement = (mode: ExecutionMode, stopOpt: O.Option<number>): boolean => {
+  switch (mode._tag) {
+    case "SinglePalette":
+      return O.isNone(stopOpt)
+    case "SingleTransform":
+      return mode.input.stop === undefined
+    case "ManyTransform":
+      return mode.stop === undefined
+    case "BatchTransform":
+      return mode.transformations.some((t) => t.stop === undefined)
+    case "BatchPalettes":
+      return false
+  }
+}
+
+// ============================================================================
+// Interactive Transformation Mode
+// ============================================================================
+
+const tryInteractiveMode = (
+  detection: ModeDetectionResult,
+  options: GenerateOptions,
+  context: ModeHandlerContext
+) => {
+  const shouldHandle = detection.isInteractive &&
+    detection.mode._tag === "SinglePalette" &&
+    O.isNone(options.colorOpt)
+
+  if (!shouldHandle) {
+    return Effect.succeed(O.none<InteractiveResult>())
+  }
+
+  return Effect.gen(function*() {
+    const inputMode = yield* promptForBatchInputMode()
+
+    switch (inputMode) {
+      case "paste": {
+        const result = yield* handlePasteMode(detection.isInteractive, context)
+        return O.some<InteractiveResult>(result)
+      }
+      case "transform": {
+        const result = yield* handleInteractiveTransformLoop(context)
+        return O.some<InteractiveResult>(result)
+      }
+      default:
+        return O.none<InteractiveResult>()
+    }
+  })
+}
+
+const handlePasteMode = (isInteractive: boolean, context: ModeHandlerContext) =>
+  Effect.gen(function*() {
+    const pasteInput = yield* promptForBatchPaste()
+    const parsedPairs = yield* parseBatchPairsInput(pasteInput)
+    return yield* handleBatchMode({
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath,
+      formatOpt: context.formatOpt,
+      isInteractive,
+      nameOpt: context.nameOpt,
+      pairs: parsedPairs,
+      pattern: context.pattern
+    })
+  })
+
+// ============================================================================
+// Interactive Transformation Loop (Recursive FP Pattern)
+// ============================================================================
+
+const handleInteractiveTransformLoop = (context: ModeHandlerContext) =>
+  pipe(
+    collectTransformationsRecursively([]),
+    Effect.flatMap((transformations) =>
+      handleBatchTransformations({
+        exportOpt: context.exportOpt,
+        exportPath: context.exportPath,
+        formatOpt: context.formatOpt,
+        inputs: transformations,
+        nameOpt: context.nameOpt,
+        pattern: context.pattern
+      })
+    )
+  )
+
+const collectTransformationsRecursively = (
+  accumulated: ReadonlyArray<TransformationRequest | TransformationBatch>
+): Effect.Effect<ReadonlyArray<TransformationRequest | TransformationBatch>, unknown, never> =>
+  Effect.gen(function*() {
+    const transformation = yield* collectSingleTransformation()
+    const updatedList = [...accumulated, transformation]
+    const shouldContinue = yield* promptForAnotherTransformation()
+
+    return shouldContinue
+      ? yield* collectTransformationsRecursively(updatedList)
+      : updatedList
+  })
+
+const collectSingleTransformation = (): Effect.Effect<TransformationRequest | TransformationBatch, unknown, never> =>
+  Effect.gen(function*() {
+    const referenceColor = yield* promptForReferenceColor()
+    const targetColors = yield* promptForTargetColors()
+    const stop = yield* promptForStop()
+
+    return buildTransformationFromTargets(referenceColor, targetColors, stop)
+  })
+
+const buildTransformationFromTargets = (
+  reference: string,
+  targets: ReadonlyArray<string>,
+  stop: StopPosition
+): TransformationRequest | TransformationBatch => {
+  const hasMultipleTargets = Arr.isNonEmptyReadonlyArray(targets) && targets.length > 1
+
+  if (hasMultipleTargets) {
+    return { reference, targets, stop }
+  }
+
+  const firstTarget = pipe(
+    Arr.head(targets),
+    O.getOrElse(() => reference)
+  )
+
+  return { reference, target: firstTarget, stop }
+}
+
+// ============================================================================
+// Mode Execution Handlers
+// ============================================================================
+
+const handleExecutionMode = (
+  mode: ExecutionMode,
+  options: GenerateOptions,
+  context: ModeHandlerContext
+) => {
+  switch (mode._tag) {
+    case "SinglePalette":
+      return handleSinglePaletteMode(options, context)
+    case "BatchPalettes":
+      return handleBatchPalettesMode(mode, context)
+    case "SingleTransform":
+      return handleSingleTransformMode(mode, context)
+    case "ManyTransform":
+      return handleManyTransformMode(mode, context)
+    case "BatchTransform":
+      return handleBatchTransformMode(mode, context)
+  }
+}
+
+const handleSinglePaletteMode = (options: GenerateOptions, context: ModeHandlerContext) =>
+  handleSingleMode({
+    colorOpt: options.colorOpt,
+    exportOpt: context.exportOpt,
+    exportPath: context.exportPath,
+    formatOpt: context.formatOpt,
+    nameOpt: context.nameOpt,
+    pattern: context.pattern,
+    stopOpt: options.stopOpt
+  })
+
+const handleBatchPalettesMode = (
+  mode: Extract<ExecutionMode, { _tag: "BatchPalettes" }>,
+  context: ModeHandlerContext
+) =>
+  handleBatchMode({
+    exportOpt: context.exportOpt,
+    exportPath: context.exportPath,
+    formatOpt: context.formatOpt,
+    isInteractive: false,
+    nameOpt: context.nameOpt,
+    pairs: Arr.map(mode.pairs, (p) => ({
+      color: p.color,
+      stop: p.stop,
+      raw: `${p.color}${PAIR_SEPARATOR}${p.stop}`
+    })),
+    pattern: context.pattern
+  })
+
+const handleSingleTransformMode = (
+  mode: Extract<ExecutionMode, { _tag: "SingleTransform" }>,
+  context: ModeHandlerContext
+) =>
+  pipe(
+    resolveTransformationRequest(mode.input),
+    Effect.flatMap((input) =>
+      handleSingleTransformation({
+        exportOpt: context.exportOpt,
+        exportPath: context.exportPath,
+        formatOpt: context.formatOpt,
+        input,
+        nameOpt: context.nameOpt,
+        pattern: context.pattern
+      })
+    )
+  )
+
+const resolveTransformationRequest = (
+  input: {
+    readonly reference?: string | undefined
+    readonly target?: string | undefined
+    readonly stop?: StopPosition | undefined
+  }
+): Effect.Effect<TransformationRequest, unknown, never> => {
+  const { reference, stop, target } = input
+
+  if (reference === undefined || target === undefined) {
+    return Effect.fail("Invalid transformation: missing reference or target")
+  }
+
+  if (stop !== undefined) {
+    return Effect.succeed({ reference, target, stop })
+  }
+
+  return pipe(
+    promptForStop(),
+    Effect.map((promptedStop) => ({ reference, target, stop: promptedStop }))
+  )
+}
+
+const handleManyTransformMode = (
+  mode: Extract<ExecutionMode, { _tag: "ManyTransform" }>,
+  context: ModeHandlerContext
+) =>
+  pipe(
+    mode.stop !== undefined
+      ? Effect.succeed(mode.stop)
+      : promptForStop(),
+    Effect.flatMap((stop) =>
+      handleOneToManyTransformation({
+        exportOpt: context.exportOpt,
+        exportPath: context.exportPath,
+        formatOpt: context.formatOpt,
+        input: {
+          reference: mode.reference,
+          targets: mode.targets,
+          stop
+        },
+        nameOpt: context.nameOpt,
+        pattern: context.pattern
+      })
+    )
+  )
+
+const handleBatchTransformMode = (
+  mode: Extract<ExecutionMode, { _tag: "BatchTransform" }>,
+  context: ModeHandlerContext
+) =>
+  pipe(
+    completePartialTransformations(mode.transformations),
+    Effect.map(({ inputs }) => inputs),
+    Effect.flatMap((completedInputs) =>
+      handleBatchTransformations({
+        exportOpt: context.exportOpt,
+        exportPath: context.exportPath,
+        formatOpt: context.formatOpt,
+        inputs: completedInputs,
+        nameOpt: context.nameOpt,
+        pattern: context.pattern
+      })
+    )
+  )

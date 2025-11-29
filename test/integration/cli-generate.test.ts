@@ -13,7 +13,7 @@ import {
   handleSingleTransformation
 } from "../../src/cli/commands/generate/modes/transform/executor.js"
 import { ConfigService } from "../../src/services/ConfigService.js"
-import { PaletteService } from "../../src/services/PaletteService.js"
+import { PaletteService } from "../../src/services/PaletteService/index.js"
 
 describe("CLI Generate Command Integration", () => {
   describe("Single Palette Mode", () => {
@@ -142,7 +142,7 @@ describe("CLI Generate Command Integration", () => {
           stopOpt: O.some(500)
         })
 
-        // Single mode returns GeneratedPaletteOutput
+        // Single mode returns PaletteResult
         expect("name" in result).toBe(true)
         expect((result as any).name).toBe("single-detect")
       }).pipe(Effect.provide(PaletteService.Test)))
@@ -203,7 +203,6 @@ describe("CLI Generate Command Integration", () => {
             target: "#238551",
             stop: 500
           },
-          isInteractive: false,
           nameOpt: O.some("transform-test"),
           pattern: appConfig.patternSource
         })
@@ -227,7 +226,6 @@ describe("CLI Generate Command Integration", () => {
             targets: ["#2D72D2", "#238551", "#BD5200"],
             stop: 500
           },
-          isInteractive: false,
           nameOpt: O.some("one-to-many-test"),
           pattern: appConfig.patternSource
         })
@@ -263,7 +261,6 @@ describe("CLI Generate Command Integration", () => {
               stop: 600
             }
           ],
-          isInteractive: false,
           nameOpt: O.some("batch-transform"),
           pattern: appConfig.patternSource
         })
@@ -290,7 +287,6 @@ describe("CLI Generate Command Integration", () => {
             targets: ["#2D72D2", "#238551"],
             stop: 500
           },
-          isInteractive: false,
           nameOpt: O.some("export-none-test"),
           pattern: appConfig.patternSource
         })
@@ -322,7 +318,6 @@ describe("CLI Generate Command Integration", () => {
               stop: 400
             }
           ],
-          isInteractive: false,
           nameOpt: O.some("batch-export-none"),
           pattern: appConfig.patternSource
         })

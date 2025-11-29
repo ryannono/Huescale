@@ -8,70 +8,75 @@
  * To change test config: edit CONFIG_DEFAULTS.test
  */
 
-import { fileURLToPath } from "node:url"
-import { dirname, join } from "node:path"
 import { existsSync } from "node:fs"
-import type { ColorSpace } from "../schemas/color.js"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
+import type { ColorSpace } from "../domain/color/color.schema.js"
+import {
+  DEFAULT_BATCH_NAME,
+  DEFAULT_MAX_CONCURRENCY,
+  DEFAULT_OUTPUT_FORMAT,
+  DEFAULT_PALETTE_NAME,
+  DEFAULT_PATTERN_FILE,
+  PATTERNS_DIR,
+  TEST_FIXTURE_PALETTE
+} from "./constants.js"
 
-// Get the package root directory
-// This works for both development (src/) and production (build/esm/)
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+// ============================================================================
+// Types
+// ============================================================================
 
-// Try different levels up to find package root (where patterns/ exists)
-let packageRoot = __dirname
-for (let i = 0; i < 5; i++) {
-  const testPath = join(packageRoot, "patterns", "default.json")
-  if (existsSync(testPath)) {
-    break
-  }
-  packageRoot = dirname(packageRoot)
-}
-
-/**
- * Configuration structure
- */
 export interface ConfigDefaults {
-  readonly patternSource: string
+  readonly defaultBatchName: string
   readonly defaultOutputFormat: ColorSpace
   readonly defaultPaletteName: string
   readonly maxConcurrency: number
+  readonly patternSource: string
 }
+
+// ============================================================================
+// Internal Helpers
+// ============================================================================
+
+/** Find package root by recursively checking for patterns/ directory */
+const findPackageRoot = (startPath: string, maxLevels = 5): string => {
+  if (maxLevels === 0) return startPath
+
+  const testPath = join(startPath, PATTERNS_DIR, DEFAULT_PATTERN_FILE)
+  return existsSync(testPath) ? startPath : findPackageRoot(dirname(startPath), maxLevels - 1)
+}
+
+/** Package root directory (works for both src/ and build/esm/) */
+const packageRoot = findPackageRoot(dirname(fileURLToPath(import.meta.url)))
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * All configuration defaults for production and test environments
  *
  * This is the single source of truth for all config values.
+ * Production config is used when running the CLI normally.
+ * Test config provides predictable, isolated testing.
  */
 export const CONFIG_DEFAULTS = {
-  /**
-   * Production configuration
-   *
-   * Used when running the CLI in production/normal mode
-   */
   production: {
-    patternSource: join(packageRoot, "patterns", "default.json"),
-    defaultOutputFormat: "hex" as const,
-    defaultPaletteName: "generated",
-    maxConcurrency: 3
-  },
+    defaultBatchName: DEFAULT_BATCH_NAME,
+    defaultOutputFormat: DEFAULT_OUTPUT_FORMAT,
+    defaultPaletteName: DEFAULT_PALETTE_NAME,
+    maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+    patternSource: join(packageRoot, PATTERNS_DIR, DEFAULT_PATTERN_FILE)
+  } as const,
 
-  /**
-   * Test configuration
-   *
-   * Used in test environments for predictable, isolated testing
-   */
   test: {
-    patternSource: "test/fixtures/valid-palettes/example-orange.json",
-    defaultOutputFormat: "hex" as const,
-    defaultPaletteName: "generated",
-    maxConcurrency: 3
-  }
-} as const
-
-/**
- * Type guard to ensure config matches expected structure
- */
-export const isValidColorSpace = (value: string): value is ColorSpace => {
-  return ["hex", "rgb", "oklch", "oklab"].includes(value)
+    defaultBatchName: DEFAULT_BATCH_NAME,
+    defaultOutputFormat: DEFAULT_OUTPUT_FORMAT,
+    defaultPaletteName: DEFAULT_PALETTE_NAME,
+    maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+    patternSource: TEST_FIXTURE_PALETTE
+  } as const
+} as const satisfies {
+  readonly production: ConfigDefaults
+  readonly test: ConfigDefaults
 }

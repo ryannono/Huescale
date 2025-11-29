@@ -4,9 +4,11 @@
 
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either } from "effect"
-import type { AnalyzedPalette } from "../../../../src/domain/learning/pattern.js"
-import { extractPatterns, PatternExtractionError } from "../../../../src/domain/learning/statistics.js"
-import { STOP_POSITIONS } from "../../../../src/schemas/palette.js"
+import type { StopPosition } from "../../../../src/domain/palette/palette.schema.js"
+import { STOP_POSITIONS } from "../../../../src/domain/palette/palette.schema.js"
+import type { AnalyzedPalette, TransformationPattern } from "../../../../src/domain/pattern/pattern.js"
+import { extractPatterns, PatternExtractionError } from "../../../../src/domain/pattern/pattern.js"
+import { getStopTransform } from "../../../../src/domain/types/collections.js"
 
 describe("Pattern Extraction Statistics", () => {
   // Helper to create a mock analyzed palette
@@ -26,6 +28,12 @@ describe("Pattern Extraction Statistics", () => {
     ]
   })
 
+  // Helper to safely get transform or throw
+  const getTransformOrThrow = (
+    pattern: TransformationPattern,
+    position: StopPosition
+  ) => Either.getOrThrow(getStopTransform(pattern.transforms, position))
+
   describe("extractPatterns", () => {
     describe("basic extraction", () => {
       it.effect("should extract pattern from single palette", () =>
@@ -44,12 +52,12 @@ describe("Pattern Extraction Statistics", () => {
           const palette = createMockPalette("test-blue")
           const pattern = yield* extractPatterns([palette])
 
-          expect(Object.keys(pattern.transforms)).toHaveLength(10)
+          expect(pattern.transforms.size).toBe(10)
           for (const pos of STOP_POSITIONS) {
-            expect(pattern.transforms[pos]).toBeDefined()
-            expect(pattern.transforms[pos].lightnessMultiplier).toBeTypeOf("number")
-            expect(pattern.transforms[pos].chromaMultiplier).toBeTypeOf("number")
-            expect(pattern.transforms[pos].hueShiftDegrees).toBeTypeOf("number")
+            const transform = getTransformOrThrow(pattern, pos)
+            expect(transform.lightnessMultiplier).toBeTypeOf("number")
+            expect(transform.chromaMultiplier).toBeTypeOf("number")
+            expect(transform.hueShiftDegrees).toBeTypeOf("number")
           }
         }))
 
@@ -59,13 +67,13 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette])
 
           // Reference stop (500) should have multiplier ~1.0
-          expect(pattern.transforms[500].lightnessMultiplier).toBeCloseTo(1.0, 1)
+          expect(getTransformOrThrow(pattern, 500).lightnessMultiplier).toBeCloseTo(1.0, 1)
 
           // Stop 100 is lighter (l=0.9 vs l=0.5) so multiplier should be 0.9/0.5 = 1.8
-          expect(pattern.transforms[100].lightnessMultiplier).toBeCloseTo(1.8, 1)
+          expect(getTransformOrThrow(pattern, 100).lightnessMultiplier).toBeCloseTo(1.8, 1)
 
           // Stop 1000 is darker (l=0.05 vs l=0.5) so multiplier should be 0.05/0.5 = 0.1
-          expect(pattern.transforms[1000].lightnessMultiplier).toBeCloseTo(0.1, 1)
+          expect(getTransformOrThrow(pattern, 1000).lightnessMultiplier).toBeCloseTo(0.1, 1)
         }))
 
       it.effect("should calculate chroma multipliers relative to reference stop", () =>
@@ -74,13 +82,13 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette])
 
           // Reference stop (500) should have multiplier ~1.0
-          expect(pattern.transforms[500].chromaMultiplier).toBeCloseTo(1.0, 1)
+          expect(getTransformOrThrow(pattern, 500).chromaMultiplier).toBeCloseTo(1.0, 1)
 
           // Stop 100 has lower chroma (c=0.08 vs c=0.15) so multiplier ~0.53
-          expect(pattern.transforms[100].chromaMultiplier).toBeLessThan(1.0)
+          expect(getTransformOrThrow(pattern, 100).chromaMultiplier).toBeLessThan(1.0)
 
           // Stop 400 has slightly lower chroma (c=0.14 vs c=0.15) so multiplier ~0.93
-          expect(pattern.transforms[400].chromaMultiplier).toBeCloseTo(0.93, 1)
+          expect(getTransformOrThrow(pattern, 400).chromaMultiplier).toBeCloseTo(0.93, 1)
         }))
 
       it.effect("should calculate hue shifts relative to reference stop", () =>
@@ -90,7 +98,7 @@ describe("Pattern Extraction Statistics", () => {
 
           // All stops have same hue (250) so shift should be 0
           for (const pos of STOP_POSITIONS) {
-            expect(Math.abs(pattern.transforms[pos].hueShiftDegrees)).toBeLessThan(0.1)
+            expect(Math.abs(getTransformOrThrow(pattern, pos).hueShiftDegrees)).toBeLessThan(0.1)
           }
         }))
     })
@@ -102,7 +110,7 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette], 300)
 
           expect(pattern.referenceStop).toBe(300)
-          expect(pattern.transforms[300].lightnessMultiplier).toBeCloseTo(1.0, 1)
+          expect(getTransformOrThrow(pattern, 300).lightnessMultiplier).toBeCloseTo(1.0, 1)
         }))
 
       it.effect("should support reference stop at 700", () =>
@@ -111,7 +119,7 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette], 700)
 
           expect(pattern.referenceStop).toBe(700)
-          expect(pattern.transforms[700].lightnessMultiplier).toBeCloseTo(1.0, 1)
+          expect(getTransformOrThrow(pattern, 700).lightnessMultiplier).toBeCloseTo(1.0, 1)
         }))
 
       it.effect("should calculate multipliers relative to custom reference", () =>
@@ -120,7 +128,7 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette], 300)
 
           // 300 has l=0.7, so 500 with l=0.5 should have multiplier 0.5/0.7 ~0.71
-          expect(pattern.transforms[500].lightnessMultiplier).toBeCloseTo(0.71, 1)
+          expect(getTransformOrThrow(pattern, 500).lightnessMultiplier).toBeCloseTo(0.71, 1)
         }))
     })
 
@@ -135,7 +143,7 @@ describe("Pattern Extraction Statistics", () => {
 
           expect(pattern.metadata.sourceCount).toBe(3)
           // Median should be close to the middle value (1.0)
-          expect(pattern.transforms[100].lightnessMultiplier).toBeCloseTo(1.8, 0)
+          expect(getTransformOrThrow(pattern, 100).lightnessMultiplier).toBeCloseTo(1.8, 0)
         }))
 
       it.effect("should calculate confidence based on consistency", () =>
@@ -171,8 +179,7 @@ describe("Pattern Extraction Statistics", () => {
           expect(Either.isLeft(result)).toBe(true)
           if (Either.isLeft(result)) {
             expect(result.left).toBeInstanceOf(PatternExtractionError)
-            expect(result.left.reason).toContain("No palettes provided")
-            expect(result.left.paletteCount).toBe(0)
+            expect(result.left.message).toContain("no palettes provided")
           }
         }))
 
@@ -192,7 +199,7 @@ describe("Pattern Extraction Statistics", () => {
           expect(Either.isLeft(result)).toBe(true)
           if (Either.isLeft(result)) {
             expect(result.left).toBeInstanceOf(PatternExtractionError)
-            expect(result.left.reason).toContain("missing reference stop")
+            expect(result.left.message).toContain("Failed to extract transforms")
           }
         }))
 
@@ -202,14 +209,16 @@ describe("Pattern Extraction Statistics", () => {
           // Modify reference stop to have zero lightness
           const zeroPalette: AnalyzedPalette = {
             ...basePalette,
-            stops: basePalette.stops.map((s) => s.position === 500 ? { ...s, color: { ...s.color, l: 0 } } : s)
+            stops: basePalette.stops.map((s: AnalyzedPalette["stops"][number]) =>
+              s.position === 500 ? { ...s, color: { ...s.color, l: 0 } } : s
+            )
           }
 
           const pattern = yield* extractPatterns([zeroPalette])
 
           // Should not crash, uses 0.001 as minimum
-          expect(pattern.transforms[100].lightnessMultiplier).toBeGreaterThan(0)
-          expect(Number.isFinite(pattern.transforms[100].lightnessMultiplier)).toBe(true)
+          expect(getTransformOrThrow(pattern, 100).lightnessMultiplier).toBeGreaterThan(0)
+          expect(Number.isFinite(getTransformOrThrow(pattern, 100).lightnessMultiplier)).toBe(true)
         }))
 
       it.effect("should handle division by zero for chroma", () =>
@@ -218,14 +227,16 @@ describe("Pattern Extraction Statistics", () => {
           // Modify reference stop to have zero chroma
           const zeroPalette: AnalyzedPalette = {
             ...basePalette,
-            stops: basePalette.stops.map((s) => s.position === 500 ? { ...s, color: { ...s.color, c: 0 } } : s)
+            stops: basePalette.stops.map((s: AnalyzedPalette["stops"][number]) =>
+              s.position === 500 ? { ...s, color: { ...s.color, c: 0 } } : s
+            )
           }
 
           const pattern = yield* extractPatterns([zeroPalette])
 
           // Should not crash, uses 0.001 as minimum
-          expect(pattern.transforms[100].chromaMultiplier).toBeGreaterThan(0)
-          expect(Number.isFinite(pattern.transforms[100].chromaMultiplier)).toBe(true)
+          expect(getTransformOrThrow(pattern, 100).chromaMultiplier).toBeGreaterThan(0)
+          expect(Number.isFinite(getTransformOrThrow(pattern, 100).chromaMultiplier)).toBe(true)
         }))
     })
 
@@ -250,8 +261,8 @@ describe("Pattern Extraction Statistics", () => {
 
           const pattern = yield* extractPatterns([palette])
 
-          expect(pattern.transforms[100].hueShiftDegrees).toBeCloseTo(10, 0)
-          expect(pattern.transforms[1000].hueShiftDegrees).toBeCloseTo(-10, 0)
+          expect(getTransformOrThrow(pattern, 100).hueShiftDegrees).toBeCloseTo(10, 0)
+          expect(getTransformOrThrow(pattern, 1000).hueShiftDegrees).toBeCloseTo(-10, 0)
         }))
 
       it.effect("should handle hue wrapping around 360 degrees", () =>
@@ -275,7 +286,7 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette])
 
           // 350 to 10 should be -20 (not +340)
-          expect(Math.abs(pattern.transforms[100].hueShiftDegrees)).toBeLessThan(30)
+          expect(Math.abs(getTransformOrThrow(pattern, 100).hueShiftDegrees)).toBeLessThan(30)
         }))
     })
 
@@ -289,7 +300,7 @@ describe("Pattern Extraction Statistics", () => {
           const pattern = yield* extractPatterns([palette1, palette2, palette3])
 
           // Median should be close to 1.0, not affected by outlier
-          expect(pattern.transforms[100].lightnessMultiplier).toBeCloseTo(1.8, 0)
+          expect(getTransformOrThrow(pattern, 100).lightnessMultiplier).toBeCloseTo(1.8, 0)
         }))
     })
   })

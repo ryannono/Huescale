@@ -85,9 +85,9 @@ describe("Transformation Input Parsing", () => {
 
     it.effect("should fail without > operator", () =>
       parseTransformationString("2D72D2::500").pipe(
-        Effect.catchTag("TransformationParseError", (error) =>
+        Effect.catchTag("ColorError", (error) =>
           Effect.sync(() => {
-            expect(error.reason).toContain("'>' operator")
+            expect(error.message).toContain("'>' operator")
           }))
       ))
 
@@ -140,17 +140,17 @@ describe("Transformation Input Parsing", () => {
 
     it.effect("should fail without parentheses", () =>
       parseOneToManyTransformation("2D72D2>238551,DC143C::500").pipe(
-        Effect.catchTag("TransformationParseError", (error) =>
+        Effect.catchTag("ColorError", (error) =>
           Effect.sync(() => {
-            expect(error.reason).toContain(">(...)")
+            expect(error.message).toContain(">(...)")
           }))
       ))
 
     it.effect("should fail with empty target list", () =>
       parseOneToManyTransformation("2D72D2>()::500").pipe(
-        Effect.catchTag("TransformationParseError", (error) =>
+        Effect.catchTag("ColorError", (error) =>
           Effect.sync(() => {
-            expect(error.reason).toContain("At least one")
+            expect(error.message).toContain("At least one")
           }))
       ))
 

@@ -7,17 +7,25 @@
 import * as clack from "@clack/prompts"
 import { Effect } from "effect"
 import type { ParseError } from "effect/ParseResult"
-import { ColorSpace, ColorString } from "../schemas/color.js"
+import { ColorSpace, ColorString } from "../domain/color/color.schema.js"
+import {
+  STOP_POSITIONS,
+  StopPosition,
+  type StopPosition as StopPositionType
+} from "../domain/palette/palette.schema.js"
 import {
   BatchInputMode,
   type BatchInputMode as BatchInputModeType,
   BatchPasteInput,
   ExportTarget,
   type ExportTarget as ExportTargetType,
-  JsonPath,
-  type JsonPath as JsonPathType
-} from "../schemas/export.js"
-import { STOP_POSITIONS, StopPosition, type StopPosition as StopPositionType } from "../schemas/palette.js"
+  JSONPath,
+  type JSONPath as JSONPathType
+} from "../services/ExportService/export.schema.js"
+
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * Prompt for color input
@@ -33,12 +41,7 @@ export const promptForColor = (): Effect.Effect<string, ParseError, never> =>
           return undefined
         }
       })
-    )
-
-    if (clack.isCancel(color)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* ColorString(color)
   })
@@ -46,14 +49,9 @@ export const promptForColor = (): Effect.Effect<string, ParseError, never> =>
 /**
  * Prompt for stop position
  */
-export const promptForStop = (color?: string, colorIndex?: number): Effect.Effect<StopPositionType, ParseError> =>
+export const promptForStop = (color?: ColorString, colorIndex?: number): Effect.Effect<StopPositionType, ParseError> =>
   Effect.gen(function*() {
-    let message = "Which stop does this color represent?"
-    if (color && colorIndex) {
-      message = `Which stop does color ${colorIndex} (${color}) represent?`
-    } else if (color) {
-      message = `Which stop does this color (${color}) represent?`
-    }
+    const message = buildStopMessage(color, colorIndex)
 
     const stop = yield* Effect.promise(() =>
       clack.select({
@@ -63,12 +61,7 @@ export const promptForStop = (color?: string, colorIndex?: number): Effect.Effec
           value: pos
         }))
       })
-    )
-
-    if (clack.isCancel(stop)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* StopPosition(stop)
   })
@@ -88,12 +81,7 @@ export const promptForOutputFormat = (): Effect.Effect<ColorSpace, ParseError> =
           { label: "OKLAB", value: "oklab", hint: "e.g., oklab(57.23% -0.051 -0.144)" }
         ]
       })
-    )
-
-    if (clack.isCancel(format)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* ColorSpace(format)
   })
@@ -111,14 +99,9 @@ export const promptForPaletteName = (
         placeholder: defaultName,
         defaultValue: defaultName
       })
-    )
+    ).pipe(Effect.flatMap(handleCancel))
 
-    if (clack.isCancel(name)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
-
-    return yield* Effect.succeed(name || defaultName)
+    return name || defaultName
   })
 
 /**
@@ -147,12 +130,7 @@ export const promptForBatchInputMode = (): Effect.Effect<BatchInputModeType, Par
           }
         ]
       })
-    )
-
-    if (clack.isCancel(mode)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* BatchInputMode(mode)
   })
@@ -173,12 +151,7 @@ export const promptForBatchPaste = (): Effect.Effect<string, ParseError> =>
           return undefined
         }
       })
-    )
-
-    if (clack.isCancel(input)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* BatchPasteInput(input)
   })
@@ -197,12 +170,7 @@ export const promptForExportTarget = (): Effect.Effect<ExportTargetType, ParseEr
           { label: "Save to JSON file", value: "json" }
         ]
       })
-    )
-
-    if (clack.isCancel(target)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* ExportTarget(target)
   })
@@ -210,7 +178,7 @@ export const promptForExportTarget = (): Effect.Effect<ExportTargetType, ParseEr
 /**
  * Prompt for JSON file path
  */
-export const promptForJsonPath = (): Effect.Effect<JsonPathType, ParseError> =>
+export const promptForJsonPath = (): Effect.Effect<JSONPathType, ParseError> =>
   Effect.gen(function*() {
     const path = yield* Effect.promise(() =>
       clack.text({
@@ -223,14 +191,9 @@ export const promptForJsonPath = (): Effect.Effect<JsonPathType, ParseError> =>
           return undefined
         }
       })
-    )
+    ).pipe(Effect.flatMap(handleCancel))
 
-    if (clack.isCancel(path)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
-
-    return yield* JsonPath(path)
+    return yield* JSONPath(path)
   })
 
 /**
@@ -247,12 +210,7 @@ export const promptForReferenceColor = (): Effect.Effect<string, ParseError> =>
           return undefined
         }
       })
-    )
-
-    if (clack.isCancel(color)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     return yield* ColorString(color)
   })
@@ -271,28 +229,20 @@ export const promptForTargetColors = (): Effect.Effect<Array<string>, ParseError
           return undefined
         }
       })
-    )
-
-    if (clack.isCancel(input)) {
-      clack.cancel("Operation cancelled")
-      process.exit(0)
-    }
+    ).pipe(Effect.flatMap(handleCancel))
 
     // Split by comma and validate each
     const colorInputs = input.split(",").map((c) => c.trim()).filter((c) => c.length > 0)
 
-    // Validate each color with ColorString schema
-    const validatedColors = []
-    for (const colorInput of colorInputs) {
-      const validated = yield* ColorString(colorInput)
-      validatedColors.push(validated)
-    }
-
-    return validatedColors
+    // Validate each color with ColorString schema using Effect.all
+    return yield* Effect.all(colorInputs.map((colorInput) => ColorString(colorInput)))
   })
 
 /**
  * Prompt to add another transformation
+ *
+ * Note: Treats cancel as "no" rather than exiting the program,
+ * since we already have valid input and just want to know if more is coming.
  */
 export const promptForAnotherTransformation = (): Effect.Effect<boolean, never> =>
   Effect.gen(function*() {
@@ -302,37 +252,55 @@ export const promptForAnotherTransformation = (): Effect.Effect<boolean, never> 
       })
     )
 
-    if (clack.isCancel(answer)) {
-      return false
-    }
-
-    return answer
+    return clack.isCancel(answer) ? false : answer
   })
 
+// ============================================================================
+// Helpers
+// ============================================================================
+
 /**
- * Get a description for a stop position
+ * Handle cancellation by exiting the process
  */
-const getStopDescription = (stop: StopPositionType): string => {
-  switch (stop) {
-    case 100:
-      return " - Lightest"
-    case 200:
-      return " - Very light"
-    case 300:
-      return " - Light"
-    case 400:
-      return " - Medium-light"
-    case 500:
-      return " - Medium (reference)"
-    case 600:
-      return " - Medium-dark"
-    case 700:
-      return " - Dark"
-    case 800:
-      return " - Very dark"
-    case 900:
-      return " - Darkest"
-    case 1000:
-      return " - Almost black"
+const handleCancel = <T>(value: T | symbol): Effect.Effect<T, never> => {
+  if (clack.isCancel(value)) {
+    return Effect.sync(() => {
+      clack.cancel("Operation cancelled")
+      process.exit(0)
+    })
   }
+  return Effect.succeed(value)
+}
+
+/**
+ * Stop position descriptions
+ */
+const STOP_DESCRIPTIONS: Readonly<Record<StopPositionType, string>> = {
+  100: " - Lightest",
+  200: " - Very light",
+  300: " - Light",
+  400: " - Medium-light",
+  500: " - Medium (reference)",
+  600: " - Medium-dark",
+  700: " - Dark",
+  800: " - Very dark",
+  900: " - Darkest",
+  1000: " - Almost black"
+}
+
+/**
+ * Get description for a stop position
+ */
+const getStopDescription = (stop: StopPositionType): string => STOP_DESCRIPTIONS[stop]
+
+/**
+ * Build stop prompt message based on context
+ *
+ * @param color - Optional color string to display in the message
+ * @param colorIndex - Optional 1-indexed color number for display (never 0)
+ */
+const buildStopMessage = (color?: ColorString, colorIndex?: number): string => {
+  if (color && colorIndex) return `Which stop does color ${colorIndex} (${color}) represent?`
+  if (color) return `Which stop does this color (${color}) represent?`
+  return "Which stop does this color represent?"
 }

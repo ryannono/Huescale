@@ -7,9 +7,9 @@
 
 import * as clack from "@clack/prompts"
 import { Effect, Either, Option as O } from "effect"
-import { ColorSpace, ColorString } from "../../../schemas/color.js"
-import { ExportTarget } from "../../../schemas/export.js"
-import { StopPosition } from "../../../schemas/palette.js"
+import { ColorSpace, ColorString } from "../../../domain/color/color.schema.js"
+import { StopPosition } from "../../../domain/palette/palette.schema.js"
+import { ExportTarget } from "../../../services/ExportService/export.schema.js"
 import { promptForColor, promptForExportTarget, promptForOutputFormat, promptForStop } from "../../prompts.js"
 
 /**

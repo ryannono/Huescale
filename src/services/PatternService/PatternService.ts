@@ -1,42 +1,38 @@
 /**
  * Pattern service for loading and processing color transformation patterns
  *
- * Provides:
- * - Loading patterns from JSON files
- * - Loading example palettes
- * - Pattern extraction and smoothing
- *
- * Uses Effect's FileSystem service instead of Node.js fs for better testing and abstraction.
+ * Loads patterns from JSON files, extracts transformation patterns,
+ * and smooths them for palette generation.
  */
 
 import { FileSystem, Path } from "@effect/platform"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
-import { Data, Effect } from "effect"
-import type { AnalyzedPalette, TransformationPattern } from "../domain/learning/pattern.js"
-import { extractPatterns } from "../domain/learning/statistics.js"
-import { smoothPattern } from "../domain/math/interpolation.js"
-import { parseColorStringToOKLCH } from "../schemas/color.js"
-import { ExamplePaletteInput } from "../schemas/palette.js"
+import { Data, Effect, Either } from "effect"
+import { parseColorStringToOKLCH } from "../../domain/color/color.js"
+import { smoothPattern } from "../../domain/math/interpolation.js"
+import { ExamplePaletteRequest } from "../../domain/palette/palette.schema.js"
+import type { AnalyzedPalette, TransformationPattern } from "../../domain/pattern/pattern.js"
+import { extractPatterns } from "../../domain/pattern/pattern.js"
+import { type DirectoryPath, type FilePath, FilePath as FilePathSchema } from "./filesystem.schema.js"
+
+// ============================================================================
+// Errors
+// ============================================================================
 
 /**
- * Error type for pattern loading failures
+ * Error when pattern loading operations fail
  */
 export class PatternLoadError extends Data.TaggedError("PatternLoadError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
 
+// ============================================================================
+// Service
+// ============================================================================
+
 /**
- * Pattern service using Effect.Service pattern
- *
- * @example
- * ```typescript
- * Effect.gen(function*() {
- *   const service = yield* PatternService
- *   const pattern = yield* service.loadPattern("test/fixtures/valid-palettes/example-orange.json")
- *   console.log(pattern.referenceStop) // 500
- * }).pipe(Effect.provide(PatternService.Default))
- * ```
+ * Pattern service with file loading and pattern extraction
  */
 export class PatternService extends Effect.Service<PatternService>()("PatternService", {
   effect: Effect.gen(function*() {
@@ -44,13 +40,12 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
     const path = yield* Path.Path
 
     /**
-     * Load an example palette from a JSON file and convert to OKLCH
+     * Load palette from JSON file and convert colors to OKLCH
      */
     const loadPalette = (
-      filePath: string
+      filePath: FilePath
     ): Effect.Effect<AnalyzedPalette, PatternLoadError> =>
       Effect.gen(function*() {
-        // Read file
         const fileContent = yield* fs.readFileString(filePath).pipe(
           Effect.mapError(
             (error) =>
@@ -61,17 +56,9 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         )
 
-        // Parse JSON and validate with schema
-        const jsonData = yield* Effect.try({
-          try: () => JSON.parse(fileContent),
-          catch: (error) =>
-            new PatternLoadError({
-              message: `Failed to parse JSON: ${filePath}`,
-              cause: error
-            })
-        })
+        const jsonData = yield* parseJson(fileContent, filePath)
 
-        const examplePalette = yield* ExamplePaletteInput(jsonData).pipe(
+        const examplePalette = yield* ExamplePaletteRequest(jsonData).pipe(
           Effect.mapError(
             (error) =>
               new PatternLoadError({
@@ -81,7 +68,6 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         )
 
-        // Convert all hex colors to OKLCH
         const stopsWithOKLCH = yield* Effect.forEach(
           examplePalette.stops,
           (stop) =>
@@ -110,11 +96,10 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
       })
 
     /**
-     * Load a pattern from a file path
-     * This loads a palette, extracts its transformation pattern, and smooths it
+     * Load pattern from file, extract and smooth transformations
      */
     const loadPattern = (
-      source: string
+      source: FilePath
     ): Effect.Effect<TransformationPattern, PatternLoadError> =>
       Effect.gen(function*() {
         const palette = yield* loadPalette(source)
@@ -127,14 +112,14 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
               })
           )
         )
-        return smoothPattern(pattern)
+        return yield* smoothPatternEffect(pattern, source)
       })
 
     /**
-     * Load multiple palettes from a directory and extract a combined pattern
+     * Load multiple palettes from directory and extract combined pattern
      */
     const loadPatternsFromDirectory = (
-      directoryPath: string
+      directoryPath: DirectoryPath
     ): Effect.Effect<
       {
         readonly palettes: ReadonlyArray<AnalyzedPalette>
@@ -143,7 +128,6 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
       PatternLoadError
     > =>
       Effect.gen(function*() {
-        // Read directory
         const files = yield* fs.readDirectory(directoryPath).pipe(
           Effect.mapError(
             (error) =>
@@ -154,8 +138,7 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         )
 
-        // Filter for JSON files
-        const jsonFiles = files.filter((f) => f.endsWith(".json"))
+        const jsonFiles = filterJsonFiles(files)
 
         if (jsonFiles.length === 0) {
           return yield* Effect.fail(
@@ -165,14 +148,16 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         }
 
-        // Load all palettes
         const palettes = yield* Effect.forEach(
           jsonFiles,
-          (file) => loadPalette(path.join(directoryPath, file)),
+          (file) =>
+            Effect.gen(function*() {
+              const filePath = yield* joinAsFilePath(path, directoryPath, file)
+              return yield* loadPalette(filePath)
+            }),
           { concurrency: "unbounded" }
         )
 
-        // Extract patterns
         const pattern = yield* extractPatterns(palettes).pipe(
           Effect.mapError(
             (error) =>
@@ -183,9 +168,11 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
           )
         )
 
+        const smoothedPattern = yield* smoothPatternEffect(pattern, directoryPath)
+
         return {
           palettes,
-          pattern: smoothPattern(pattern)
+          pattern: smoothedPattern
         }
       })
 
@@ -202,3 +189,65 @@ export class PatternService extends Effect.Service<PatternService>()("PatternSer
    */
   static readonly Test = PatternService.Default
 }
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Parse JSON string to object
+ */
+const parseJson = (
+  content: string,
+  filePath: FilePath
+): Effect.Effect<unknown, PatternLoadError> =>
+  Effect.try({
+    try: () => JSON.parse(content),
+    catch: (error) =>
+      new PatternLoadError({
+        message: `Failed to parse JSON: ${filePath}`,
+        cause: error
+      })
+  })
+
+/**
+ * Smooth pattern and convert Either to Effect
+ */
+const smoothPatternEffect = (
+  pattern: TransformationPattern,
+  source: string
+): Effect.Effect<TransformationPattern, PatternLoadError> =>
+  Either.match(smoothPattern(pattern), {
+    onLeft: (error) =>
+      Effect.fail(
+        new PatternLoadError({
+          message: `Failed to smooth pattern from: ${source}`,
+          cause: error
+        })
+      ),
+    onRight: Effect.succeed
+  })
+
+/**
+ * Join directory and file name into validated FilePath
+ */
+const joinAsFilePath = (
+  path: Path.Path,
+  dir: DirectoryPath,
+  file: string
+): Effect.Effect<FilePath, PatternLoadError> =>
+  FilePathSchema(path.join(dir, file)).pipe(
+    Effect.mapError(
+      (error) =>
+        new PatternLoadError({
+          message: `Invalid file path: ${dir}/${file}`,
+          cause: error
+        })
+    )
+  )
+
+/**
+ * Filter array for JSON files
+ */
+const filterJsonFiles = (files: ReadonlyArray<string>): ReadonlyArray<string> =>
+  files.filter((f) => f.endsWith(".json"))

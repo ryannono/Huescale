@@ -5,7 +5,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Either, Layer } from "effect"
 import { ConfigService } from "../../../src/services/ConfigService.js"
-import { PaletteGenerationError, PaletteService } from "../../../src/services/PaletteService.js"
+import { PaletteGenerationError, PaletteService } from "../../../src/services/PaletteService/index.js"
 
 // Test layer with all test dependencies
 // We need to provide ConfigService separately since tests access it directly
@@ -274,26 +274,30 @@ describe("PaletteService", () => {
         expect(result.palettes.length).toBeGreaterThan(0) // At least some succeeded
       }).pipe(Effect.provide(TestLayer)))
 
-    it.effect("should generate empty array when all batch items fail", () =>
+    it.effect("should fail with PaletteGenerationError when all batch items fail", () =>
       Effect.gen(function*() {
         const service = yield* PaletteService
         const config = yield* ConfigService
         const patternSource = yield* config.getPatternSource()
 
-        const result = yield* service.generateBatch({
-          paletteGroupName: "test-all-fail",
-          outputFormat: "hex",
-          pairs: [
-            { color: "invalid-1", stop: 500 },
-            { color: "invalid-2", stop: 500 },
-            { color: "invalid-3", stop: 500 }
-          ],
-          patternSource
-        })
+        const result = yield* Effect.either(
+          service.generateBatch({
+            paletteGroupName: "test-all-fail",
+            outputFormat: "hex",
+            pairs: [
+              { color: "invalid-1", stop: 500 },
+              { color: "invalid-2", stop: 500 },
+              { color: "invalid-3", stop: 500 }
+            ],
+            patternSource
+          })
+        )
 
-        expect(result.groupName).toBe("test-all-fail")
-        expect(result.palettes).toHaveLength(0)
-        expect(result.partial).toBe(true)
+        expect(Either.isLeft(result)).toBe(true)
+        if (Either.isLeft(result)) {
+          expect(result.left).toBeInstanceOf(PaletteGenerationError)
+          expect(result.left.message).toBe("All palette generations failed")
+        }
       }).pipe(Effect.provide(TestLayer)))
 
     it.effect("should support different output formats in batch", () =>

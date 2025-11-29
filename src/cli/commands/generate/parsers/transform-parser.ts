@@ -9,19 +9,19 @@
 
 import { Effect } from "effect"
 import { ParseError } from "effect/ParseResult"
-import { TransformationParseError } from "../../../../domain/color/errors.js"
+import { ColorError } from "../../../../domain/color/color.js"
 import type {
   PartialTransformationBatch,
-  PartialTransformationInput,
+  PartialTransformationRequest,
   TransformationBatch,
-  TransformationInput
-} from "../../../../schemas/transformation.js"
+  TransformationRequest
+} from "../../../schemas/transformation.schema.js"
 import {
   PartialTransformationBatch as PartialTransformationBatchDecoder,
-  PartialTransformationInput as PartialTransformationInputDecoder,
+  PartialTransformationRequest as PartialTransformationRequestDecoder,
   TransformationBatch as TransformationBatchDecoder,
-  TransformationInput as TransformationInputDecoder
-} from "../../../../schemas/transformation.js"
+  TransformationRequest as TransformationRequestDecoder
+} from "../../../schemas/transformation.schema.js"
 
 /**
  * Parse a single transformation string: ref>target::stop
@@ -38,8 +38,8 @@ import {
 export const parseTransformationString = (
   input: string
 ): Effect.Effect<
-  TransformationInput | PartialTransformationInput,
-  TransformationParseError | ParseError
+  TransformationRequest | PartialTransformationRequest,
+  ColorError | ParseError
 > =>
   Effect.gen(function*() {
     const trimmed = input.trim()
@@ -47,9 +47,8 @@ export const parseTransformationString = (
     // Check for > operator
     if (!trimmed.includes(">")) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "Transformation syntax requires '>' operator (e.g., 'ref>target::stop')"
+        new ColorError({
+          message: `Transformation syntax requires '>' operator (e.g., 'ref>target::stop'): ${trimmed}`
         })
       )
     }
@@ -60,9 +59,8 @@ export const parseTransformationString = (
 
     if (!reference || !targetPart) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "Invalid transformation syntax: both reference and target are required"
+        new ColorError({
+          message: `Invalid transformation syntax: both reference and target are required: ${trimmed}`
         })
       )
     }
@@ -95,16 +93,15 @@ export const parseTransformationString = (
 
     if (!target) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "Invalid transformation syntax: target color is required"
+        new ColorError({
+          message: `Invalid transformation syntax: target color is required: ${trimmed}`
         })
       )
     }
 
     if (!stopStr) {
       // Return partial transformation (stop will be prompted for)
-      return yield* PartialTransformationInputDecoder({
+      return yield* PartialTransformationRequestDecoder({
         reference,
         target
       })
@@ -113,7 +110,7 @@ export const parseTransformationString = (
     const stop = parseInt(stopStr, 10)
 
     // Validate with schema
-    return yield* TransformationInputDecoder({
+    return yield* TransformationRequestDecoder({
       reference,
       target,
       stop
@@ -134,7 +131,7 @@ export const parseOneToManyTransformation = (
   input: string
 ): Effect.Effect<
   TransformationBatch | PartialTransformationBatch,
-  TransformationParseError | ParseError
+  ColorError | ParseError
 > =>
   Effect.gen(function*() {
     const trimmed = input.trim()
@@ -146,9 +143,8 @@ export const parseOneToManyTransformation = (
       !trimmed.includes(")")
     ) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "One-to-many syntax requires '>(...)'  (e.g., 'ref>(t1,t2)::stop')"
+        new ColorError({
+          message: `One-to-many syntax requires '>(...)'  (e.g., 'ref>(t1,t2)::stop'): ${trimmed}`
         })
       )
     }
@@ -159,9 +155,8 @@ export const parseOneToManyTransformation = (
 
     if (!reference || !rest) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "Invalid transformation syntax: reference is required"
+        new ColorError({
+          message: `Invalid transformation syntax: reference is required: ${trimmed}`
         })
       )
     }
@@ -172,9 +167,8 @@ export const parseOneToManyTransformation = (
 
     if (parenStart === -1 || parenEnd === -1 || parenEnd <= parenStart) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "Invalid parentheses in one-to-many syntax"
+        new ColorError({
+          message: `Invalid parentheses in one-to-many syntax: ${trimmed}`
         })
       )
     }
@@ -190,9 +184,8 @@ export const parseOneToManyTransformation = (
 
     if (targets.length === 0) {
       return yield* Effect.fail(
-        new TransformationParseError({
-          input: trimmed,
-          reason: "At least one target color is required in parentheses"
+        new ColorError({
+          message: `At least one target color is required in parentheses: ${trimmed}`
         })
       )
     }
@@ -254,11 +247,11 @@ export const isOneToManyTransformation = (input: string): boolean => {
 export const parseAnyTransformation = (
   input: string
 ): Effect.Effect<
-  | TransformationInput
+  | TransformationRequest
   | TransformationBatch
-  | PartialTransformationInput
+  | PartialTransformationRequest
   | PartialTransformationBatch,
-  TransformationParseError | ParseError
+  ColorError | ParseError
 > =>
   Effect.gen(function*() {
     if (isOneToManyTransformation(input)) {
@@ -316,8 +309,8 @@ const splitByCommaOutsideParens = (input: string): Array<string> => {
 export const parseBatchTransformations = (
   input: string
 ): Effect.Effect<
-  Array<TransformationInput | TransformationBatch | PartialTransformationInput | PartialTransformationBatch>,
-  TransformationParseError | ParseError
+  Array<TransformationRequest | TransformationBatch | PartialTransformationRequest | PartialTransformationBatch>,
+  ColorError | ParseError
 > => {
   // Split by newlines first
   const lines = input

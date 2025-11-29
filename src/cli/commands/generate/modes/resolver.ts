@@ -5,11 +5,17 @@
  * Separates "what to do" (mode detection) from "how to do it" (execution).
  */
 
-import { Effect, Option as O } from "effect"
+import { Array as Arr, Effect, Option as O, pipe } from "effect"
 import type { ParseError } from "effect/ParseResult"
-import { TransformationParseError } from "../../../../domain/color/errors.js"
-import { ColorString } from "../../../../schemas/color.js"
-import { StopPosition } from "../../../../schemas/palette.js"
+import { ColorError } from "../../../../domain/color/color.js"
+import { ColorString } from "../../../../domain/color/color.schema.js"
+import { StopPosition } from "../../../../domain/palette/palette.schema.js"
+import type {
+  PartialTransformationBatch,
+  PartialTransformationRequest,
+  TransformationBatch,
+  TransformationRequest
+} from "../../../schemas/transformation.schema.js"
 import { parseBatchPairsInput } from "../parsers/batch-parser.js"
 import {
   isTransformationSyntax,
@@ -25,221 +31,38 @@ import {
   ModeDetectionResult as ModeDetectionResultDecoder,
   SinglePaletteMode,
   SingleTransformMode
-} from "./types.js"
+} from "./resolver.schema.js"
 
-/**
- * Input options for mode detection
- */
+// ============================================================================
+// Types
+// ============================================================================
+
 export interface ModeDetectionInput {
   readonly colorOpt: O.Option<string>
-  readonly stopOpt: O.Option<number>
+  readonly exportOpt: O.Option<string>
+  readonly exportPath: O.Option<string>
   readonly formatOpt: O.Option<string>
   readonly nameOpt: O.Option<string>
   readonly patternOpt: O.Option<string>
-  readonly exportOpt: O.Option<string>
-  readonly exportPath: O.Option<string>
+  readonly stopOpt: O.Option<number>
 }
 
-/**
- * Check if input is interactive (missing required inputs)
- */
-const isInteractive = (input: ModeDetectionInput): boolean => {
-  return O.isNone(input.colorOpt)
-}
+/** Union of all transformation types returned by parsers */
+type AnyTransformation =
+  | TransformationRequest
+  | PartialTransformationRequest
+  | TransformationBatch
+  | PartialTransformationBatch
 
-/**
- * Detect transformation mode from color input
- */
-const detectTransformationMode = (
-  colorInput: string
-): Effect.Effect<ExecutionMode, ParseError | TransformationParseError> =>
-  Effect.gen(function*() {
-    // Check for batch transformations FIRST (comma or newline separated)
-    // Must check this before one-to-many to avoid treating ", " after parens as part of transformation
-    if (colorInput.includes(",") || colorInput.includes("\n")) {
-      const transformations = yield* parseBatchTransformations(colorInput)
-
-      if (transformations.length === 1) {
-        const single = transformations[0]!
-        if ("targets" in single) {
-          // Validate required fields
-          if (
-            !single.reference ||
-            !single.targets ||
-            single.targets.length === 0
-          ) {
-            return yield* Effect.fail(
-              new TransformationParseError({
-                input: colorInput,
-                reason: "Invalid transformation syntax: reference and targets are required"
-              })
-            )
-          }
-
-          const mode = yield* ManyTransformMode({
-            _tag: "ManyTransform",
-            reference: single.reference,
-            targets: single.targets,
-            stop: single.stop
-          })
-          return mode
-        } else {
-          const mode = yield* SingleTransformMode({
-            _tag: "SingleTransform",
-            input: single
-          })
-          return mode
-        }
-      }
-
-      // Multiple transformations - accept both single and one-to-many
-      // Filter out any with missing required fields (reference/targets/target)
-      const validInputs = transformations.filter((t) => {
-        if ("targets" in t) {
-          return t.reference && t.targets && t.targets.length > 0
-        } else {
-          return t.reference && "target" in t && t.target
-        }
-      })
-
-      if (validInputs.length === 0) {
-        return yield* Effect.fail(
-          new TransformationParseError({
-            input: colorInput,
-            reason: "No valid transformations found"
-          })
-        )
-      }
-
-      // Allow both single and one-to-many transformations in batch
-      // Handler will prompt for any missing stops
-      const mode = yield* BatchTransformMode({
-        _tag: "BatchTransform",
-        transformations: validInputs
-      })
-      return mode
-    }
-
-    // Single transformation
-    const transformation = yield* parseAnyTransformation(colorInput)
-    if ("targets" in transformation) {
-      const mode = yield* ManyTransformMode({
-        _tag: "ManyTransform",
-        reference: transformation.reference,
-        targets: transformation.targets,
-        stop: transformation.stop
-      })
-      return mode
-    } else {
-      const mode = yield* SingleTransformMode({
-        _tag: "SingleTransform",
-        input: transformation
-      })
-      return mode
-    }
-  })
-
-/**
- * Detect batch palette mode from color input
- */
-const detectBatchPaletteMode = (
-  colorInput: string
-): Effect.Effect<ExecutionMode, ParseError> =>
-  Effect.gen(function*() {
-    const pairs = yield* parseBatchPairsInput(colorInput)
-
-    // Keep stops as-is (undefined allowed) - batch executor will prompt for missing ones
-    const colorStopPairs = pairs.map((p) => ({
-      color: p.color,
-      stop: p.stop
-    }))
-
-    const mode = yield* BatchPalettesMode({
-      _tag: "BatchPalettes",
-      pairs: colorStopPairs
-    })
-    return mode
-  })
-
-/**
- * Detect single palette mode
- */
-const detectSinglePaletteMode = (
-  input: ModeDetectionInput
-): Effect.Effect<ExecutionMode, ParseError> =>
-  Effect.gen(function*() {
-    const colorStr = O.getOrNull(input.colorOpt) ?? ""
-    const color = yield* ColorString(colorStr)
-
-    const stopNum = O.getOrNull(input.stopOpt)
-    let stop: number | undefined
-
-    if (stopNum !== null) {
-      stop = yield* StopPosition(stopNum)
-    }
-
-    const mode = yield* SinglePaletteMode({
-      _tag: "SinglePalette",
-      color,
-      stop
-    })
-    return mode
-  })
-
-/**
- * Main mode detection logic
- */
-const detectModeImpl = (
-  input: ModeDetectionInput
-): Effect.Effect<ModeDetectionResult, ParseError | TransformationParseError> =>
-  Effect.gen(function*() {
-    const interactive = isInteractive(input)
-    const colorInput = O.getOrNull(input.colorOpt)
-
-    // If no color input, it's interactive single mode
-    // Don't validate color in interactive mode - it will be prompted for
-    if (!colorInput) {
-      return {
-        mode: {
-          _tag: "SinglePalette" as const,
-          color: "",
-          stop: undefined
-        },
-        isInteractive: true
-      }
-    }
-
-    // Check for transformation syntax
-    if (isTransformationSyntax(colorInput)) {
-      const mode = yield* detectTransformationMode(colorInput)
-      const result = yield* ModeDetectionResultDecoder({
-        mode,
-        isInteractive: interactive
-      })
-      return result
-    }
-
-    // Check for batch palette mode (comma or :: separator)
-    if (colorInput.includes(",") || colorInput.includes("::")) {
-      const mode = yield* detectBatchPaletteMode(colorInput)
-      const result = yield* ModeDetectionResultDecoder({
-        mode,
-        isInteractive: interactive
-      })
-      return result
-    }
-
-    // Default to single palette mode
-    const mode = yield* detectSinglePaletteMode(input)
-    const result = yield* ModeDetectionResultDecoder({
-      mode,
-      isInteractive: interactive
-    })
-    return result
-  })
+// ============================================================================
+// Public API
+// ============================================================================
 
 /**
  * ModeResolver service using Effect.Service pattern
+ *
+ * Detects execution mode from CLI inputs by analyzing color input syntax.
+ * Supports single palette, batch palettes, and transformation modes.
  *
  * @example
  * ```typescript
@@ -257,19 +80,189 @@ export class ModeResolver extends Effect.Service<ModeResolver>()(
   "ModeResolver",
   {
     effect: Effect.succeed({
-      /**
-       * Detect execution mode from CLI inputs
-       */
       detectMode: detectModeImpl
     })
   }
 ) {
-  /**
-   * Test layer with same implementation as Default
-   */
   static readonly Test = Effect.Service<ModeResolver>()("ModeResolver", {
     effect: Effect.succeed({
       detectMode: detectModeImpl
     })
   }).Default
 }
+
+// ============================================================================
+// Internal Helpers - Type Guards
+// ============================================================================
+
+/** Check if transformation has targets array (one-to-many) */
+const isManyTransformation = (t: AnyTransformation): t is TransformationBatch | PartialTransformationBatch =>
+  "targets" in t && Arr.isArray(t.targets)
+
+/** Check if one-to-many transformation is valid (has required fields) */
+const isValidManyTransformation = (t: TransformationBatch | PartialTransformationBatch): boolean =>
+  t.reference !== undefined && Arr.isNonEmptyReadonlyArray(t.targets)
+
+/** Check if single transformation is valid (has required fields) */
+const isValidSingleTransformation = (t: TransformationRequest | PartialTransformationRequest): boolean =>
+  t.reference !== undefined && "target" in t && t.target !== undefined
+
+/** Check if any transformation is valid */
+const isValidTransformation = (t: AnyTransformation): boolean =>
+  isManyTransformation(t) ? isValidManyTransformation(t) : isValidSingleTransformation(t)
+
+// ============================================================================
+// Internal Helpers - Syntax Detection
+// ============================================================================
+
+/** Check if input uses batch syntax (comma or :: separator) */
+const isBatchSyntax = (colorInput: string): boolean => colorInput.includes(",") || colorInput.includes("::")
+
+/** Check if input contains batch transformation separators */
+const hasBatchSeparator = (colorInput: string): boolean => colorInput.includes(",") || colorInput.includes("\n")
+
+// ============================================================================
+// Internal Helpers - Mode Creation
+// ============================================================================
+
+/** Create ManyTransformMode from a valid one-to-many transformation */
+const createManyTransformMode = (
+  t: TransformationBatch | PartialTransformationBatch
+): Effect.Effect<ExecutionMode, ParseError> =>
+  ManyTransformMode({
+    _tag: "ManyTransform",
+    reference: t.reference,
+    stop: t.stop,
+    targets: t.targets
+  })
+
+/** Create SingleTransformMode from a transformation */
+const createSingleTransformMode = (
+  t: TransformationRequest | PartialTransformationRequest
+): Effect.Effect<ExecutionMode, ParseError> => SingleTransformMode({ _tag: "SingleTransform", input: t })
+
+/** Convert a transformation to appropriate mode */
+const transformationToMode = (
+  t: AnyTransformation,
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError | ColorError> => {
+  if (isManyTransformation(t)) {
+    return isValidManyTransformation(t)
+      ? createManyTransformMode(t)
+      : Effect.fail(
+        new ColorError({
+          message: `Invalid transformation syntax: reference and targets are required: ${colorInput}`
+        })
+      )
+  }
+  return createSingleTransformMode(t)
+}
+
+// ============================================================================
+// Internal Helpers - Mode Detection
+// ============================================================================
+
+/** Main mode detection logic */
+function detectModeImpl(
+  input: ModeDetectionInput
+): Effect.Effect<ModeDetectionResult, ParseError | ColorError> {
+  return pipe(
+    input.colorOpt,
+    O.match({
+      onNone: () => createInteractiveResult(),
+      onSome: (colorInput) => detectModeFromColor(colorInput, input.stopOpt)
+    })
+  )
+}
+
+/** Create result for interactive mode (no color provided) */
+const createInteractiveResult = (): Effect.Effect<ModeDetectionResult, ParseError> =>
+  ModeDetectionResultDecoder({
+    mode: { _tag: "SinglePalette", color: undefined, stop: undefined },
+    isInteractive: true
+  })
+
+/** Detect mode from color input string (non-interactive since color is provided) */
+const detectModeFromColor = (
+  colorInput: string,
+  stopOpt: O.Option<number>
+): Effect.Effect<ModeDetectionResult, ParseError | ColorError> =>
+  pipe(
+    isTransformationSyntax(colorInput)
+      ? detectTransformationMode(colorInput)
+      : isBatchSyntax(colorInput)
+      ? detectBatchPaletteMode(colorInput)
+      : detectSinglePaletteMode(colorInput, stopOpt),
+    Effect.flatMap((mode) => ModeDetectionResultDecoder({ mode, isInteractive: false }))
+  )
+
+/** Detect transformation mode from color input */
+const detectTransformationMode = (
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError | ColorError> =>
+  hasBatchSeparator(colorInput)
+    ? detectBatchTransformationMode(colorInput)
+    : detectSingleTransformationMode(colorInput)
+
+/** Detect batch transformation mode (comma or newline separated) */
+const detectBatchTransformationMode = (
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError | ColorError> =>
+  pipe(
+    parseBatchTransformations(colorInput),
+    Effect.flatMap((transformations) =>
+      pipe(
+        Arr.head(transformations),
+        O.filter(() => transformations.length === 1),
+        O.match({
+          onNone: () => handleMultipleTransformations(transformations, colorInput),
+          onSome: (single) => transformationToMode(single, colorInput)
+        })
+      )
+    )
+  )
+
+/** Handle multiple transformations - filter invalid and create batch mode */
+const handleMultipleTransformations = (
+  transformations: ReadonlyArray<AnyTransformation>,
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError | ColorError> => {
+  const validInputs = Arr.filter(transformations, isValidTransformation)
+
+  return Arr.isEmptyReadonlyArray(validInputs)
+    ? Effect.fail(new ColorError({ message: `No valid transformations found: ${colorInput}` }))
+    : BatchTransformMode({ _tag: "BatchTransform", transformations: validInputs })
+}
+
+/** Detect single transformation mode */
+const detectSingleTransformationMode = (
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError | ColorError> =>
+  pipe(
+    parseAnyTransformation(colorInput),
+    Effect.flatMap((t) => transformationToMode(t, colorInput))
+  )
+
+/** Detect batch palette mode from color input */
+const detectBatchPaletteMode = (
+  colorInput: string
+): Effect.Effect<ExecutionMode, ParseError> =>
+  pipe(
+    parseBatchPairsInput(colorInput),
+    Effect.map((pairs) => Arr.map(pairs, (p) => ({ color: p.color, stop: p.stop }))),
+    Effect.flatMap((pairs) => BatchPalettesMode({ _tag: "BatchPalettes", pairs }))
+  )
+
+/** Detect single palette mode from color string and optional stop */
+const detectSinglePaletteMode = (
+  colorInput: string,
+  stopOpt: O.Option<number>
+): Effect.Effect<ExecutionMode, ParseError> =>
+  Effect.gen(function*() {
+    const color = yield* ColorString(colorInput)
+    const stop = yield* O.match(stopOpt, {
+      onNone: () => Effect.succeed(undefined),
+      onSome: (n) => StopPosition(n)
+    })
+    return yield* SinglePaletteMode({ _tag: "SinglePalette", color, stop })
+  })
