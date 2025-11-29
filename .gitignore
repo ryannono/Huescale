@@ -19,3 +19,4 @@ scratchpad/*
 .env.test.local
 .env.production.local
 .claude.md
+CLAUDE.md
