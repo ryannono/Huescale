@@ -10,7 +10,6 @@ import {
   ENV_DEFAULT_BATCH_NAME,
   ENV_DEFAULT_OUTPUT_FORMAT,
   ENV_DEFAULT_PALETTE_NAME,
-  ENV_MAX_CONCURRENCY,
   ENV_PATTERN_SOURCE
 } from "../config/constants.js"
 import { CONFIG_DEFAULTS } from "../config/defaults.js"
@@ -31,7 +30,6 @@ export interface AppConfig {
   readonly defaultOutputFormat: ColorSpace
   readonly defaultPaletteName: string
   readonly defaultBatchName: string
-  readonly maxConcurrency: number
 }
 
 // ============================================================================
@@ -82,21 +80,13 @@ const defaultBatchNameConfig: Config.Config<string> = Config.string(
 ).pipe(Config.withDefault(CONFIG_DEFAULTS.production.defaultBatchName))
 
 /**
- * Maximum concurrency for parallel operations
- */
-const maxConcurrencyConfig: Config.Config<number> = Config.integer(
-  ENV_MAX_CONCURRENCY
-).pipe(Config.withDefault(CONFIG_DEFAULTS.production.maxConcurrency))
-
-/**
  * Combined application config
  */
 const appConfigConfig: Config.Config<AppConfig> = Config.all({
   patternSource: patternSourceConfig,
   defaultOutputFormat: defaultOutputFormatConfig,
   defaultPaletteName: defaultPaletteNameConfig,
-  defaultBatchName: defaultBatchNameConfig,
-  maxConcurrency: maxConcurrencyConfig
+  defaultBatchName: defaultBatchNameConfig
 })
 
 // ============================================================================
@@ -136,8 +126,7 @@ export class ConfigService extends Effect.Service<ConfigService>()(
         patternSource,
         defaultOutputFormat: CONFIG_DEFAULTS.test.defaultOutputFormat,
         defaultPaletteName: CONFIG_DEFAULTS.test.defaultPaletteName,
-        defaultBatchName: CONFIG_DEFAULTS.test.defaultBatchName,
-        maxConcurrency: CONFIG_DEFAULTS.test.maxConcurrency
+        defaultBatchName: CONFIG_DEFAULTS.test.defaultBatchName
       }
       return {
         getConfig: (): Effect.Effect<AppConfig> => Effect.succeed(testConfig),

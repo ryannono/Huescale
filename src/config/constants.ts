@@ -4,12 +4,16 @@
  * Single source of truth for magic strings and constant values used across the application.
  */
 
+import { fileURLToPath } from "node:url"
+
 // ============================================================================
 // File Paths
 // ============================================================================
 
-/** Default pattern file name in patterns directory */
-export const DEFAULT_PATTERN_FILE = "default.json" as const
+/** Default pattern path resolved via package self-reference exports */
+export const DEFAULT_PATTERN_PATH = fileURLToPath(
+  import.meta.resolve(`oklch-palette-generator/patterns/default.json`)
+)
 
 /** Test fixture palette path */
 export const TEST_FIXTURE_PALETTE = "test/fixtures/valid-palettes/example-orange.json" as const
@@ -59,15 +63,9 @@ export const ENV_DEFAULT_PALETTE_NAME = "DEFAULT_PALETTE_NAME" as const
 /** Environment variable for default batch name */
 export const ENV_DEFAULT_BATCH_NAME = "DEFAULT_BATCH_NAME" as const
 
-/** Environment variable for maximum concurrency */
-export const ENV_MAX_CONCURRENCY = "MAX_CONCURRENCY" as const
-
 // ============================================================================
 // Default Values
 // ============================================================================
 
 /** Default output format (hex) */
 export const DEFAULT_OUTPUT_FORMAT = COLOR_SPACE_HEX
-
-/** Default maximum concurrency for parallel operations */
-export const DEFAULT_MAX_CONCURRENCY = 3 as const

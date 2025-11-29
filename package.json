@@ -43,6 +43,10 @@
     "README.md",
     "LICENSE"
   ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./patterns/*": "./patterns/*"
+  },
   "scripts": {
     "dev": "tsx src/cli/index.ts generate",
     "codegen": "build-utils prepare-v2",

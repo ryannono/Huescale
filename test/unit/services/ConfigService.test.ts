@@ -22,7 +22,6 @@ describe("ConfigService", () => {
       expect(config.defaultPaletteName).toBe(
         CONFIG_DEFAULTS.test.defaultPaletteName
       )
-      expect(config.maxConcurrency).toBe(CONFIG_DEFAULTS.test.maxConcurrency)
     }).pipe(Effect.provide(MainTest)))
 
   it.effect("should provide pattern source convenience method", () =>
