@@ -1,6 +1,6 @@
 {
   "name": "oklch-palette-generator",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "packageManager": "pnpm@10.14.0",
   "license": "MIT",
