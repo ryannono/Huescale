@@ -77,18 +77,17 @@ type AnyTransformation =
  * ```
  */
 export class ModeResolver extends Effect.Service<ModeResolver>()(
-  "ModeResolver",
+  "@oklch-palette-generator/cli/commands/generate/modes/ModeResolver",
   {
     effect: Effect.succeed({
       detectMode: detectModeImpl
     })
   }
 ) {
-  static readonly Test = Effect.Service<ModeResolver>()("ModeResolver", {
-    effect: Effect.succeed({
-      detectMode: detectModeImpl
-    })
-  }).Default
+  /**
+   * Test layer - same as Default since ModeResolver is pure (no side effects or dependencies)
+   */
+  static readonly Test = ModeResolver.Default
 }
 
 // ============================================================================

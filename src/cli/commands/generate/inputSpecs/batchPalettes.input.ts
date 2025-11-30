@@ -7,8 +7,12 @@
 
 import { Schema } from "effect"
 import { ColorSpaceSchema } from "../../../../domain/color/color.schema.js"
-import { PaletteNameSchema, StopPositionSchema } from "../../../../domain/palette/palette.schema.js"
-import { ColorStopPairSchema } from "../../../../services/PaletteService/palette.schema.js"
+import {
+  ColorStopPairSchema,
+  PaletteNameSchema,
+  type PartialColorStopPair,
+  PartialColorStopPairSchema
+} from "../../../../domain/palette/palette.schema.js"
 
 // ============================================================================
 // Complete Input Schema
@@ -43,17 +47,8 @@ export type BatchPalettesComplete = typeof BatchPalettesCompleteSchema.Type
 // Partial Input Schema (Derived)
 // ============================================================================
 
-/** Partial color/stop pair - stop is optional (derived from ColorStopPairSchema) */
-const PartialColorStopPairSchema = ColorStopPairSchema.pipe(
-  Schema.omit("stop"),
-  Schema.extend(Schema.Struct({ stop: Schema.optional(StopPositionSchema) })),
-  Schema.annotations({
-    identifier: "PartialColorStopPair",
-    description: "A color with optional stop position"
-  })
-)
-
-export type PartialColorStopPair = typeof PartialColorStopPairSchema.Type
+// Re-export PartialColorStopPair type for consumers
+export type { PartialColorStopPair }
 
 /**
  * Partial BatchPalettes input - for progressive completion.

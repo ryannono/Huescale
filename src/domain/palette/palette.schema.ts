@@ -3,7 +3,7 @@
  */
 
 import { Schema } from "effect"
-import { HexColorSchema, OKLCHColorSchema } from "../color/color.schema.js"
+import { ColorSpaceSchema, ColorStringSchema, HexColorSchema, OKLCHColorSchema } from "../color/color.schema.js"
 
 // ============================================================================
 // Constants
@@ -12,7 +12,7 @@ import { HexColorSchema, OKLCHColorSchema } from "../color/color.schema.js"
 /**
  * Array of all valid stop positions (for iteration)
  */
-export const STOP_POSITIONS: ReadonlyArray<100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000> = [
+export const STOP_POSITIONS = [
   100,
   200,
   300,
@@ -23,7 +23,7 @@ export const STOP_POSITIONS: ReadonlyArray<100 | 200 | 300 | 400 | 500 | 600 | 7
   800,
   900,
   1000
-]
+] as const
 
 // ============================================================================
 // Component Schemas
@@ -175,3 +175,117 @@ export const ExamplePaletteRequestSchema = Schema.Struct({
 
 export const ExamplePaletteRequest = Schema.decodeUnknown(ExamplePaletteRequestSchema)
 export type ExamplePaletteRequest = typeof ExamplePaletteRequestSchema.Type
+
+// ============================================================================
+// Result Schemas
+// ============================================================================
+
+// ============================================================================
+// Validation Helpers
+// ============================================================================
+
+/** Check if string is a valid ISO 8601 timestamp */
+const isValidISOTimestamp = (s: string): boolean => !isNaN(Date.parse(s))
+
+// ============================================================================
+// Result Schemas (continued)
+// ============================================================================
+
+/** Validated ISO 8601 timestamp */
+export const ISOTimestampSchema = Schema.String.pipe(
+  Schema.filter(isValidISOTimestamp, { message: () => "Invalid ISO 8601 timestamp" }),
+  Schema.brand("ISOTimestamp"),
+  Schema.annotations({
+    identifier: "ISOTimestamp",
+    description: "ISO 8601 formatted timestamp string"
+  })
+)
+
+export const ISOTimestamp = Schema.decodeUnknown(ISOTimestampSchema)
+export type ISOTimestamp = typeof ISOTimestampSchema.Type
+
+/** Color paired with its anchor stop position */
+export const ColorStopPairSchema = Schema.Struct({
+  color: ColorStringSchema,
+  stop: StopPositionSchema
+}).pipe(
+  Schema.annotations({
+    identifier: "ColorStopPair",
+    description: "Color paired with its anchor stop position for palette generation"
+  })
+)
+
+export const ColorStopPair = Schema.decodeUnknown(ColorStopPairSchema)
+export type ColorStopPair = typeof ColorStopPairSchema.Type
+
+/** Color/stop pair with optional stop for interactive prompting */
+export const PartialColorStopPairSchema = ColorStopPairSchema.pipe(
+  Schema.omit("stop"),
+  Schema.extend(Schema.Struct({ stop: Schema.optional(StopPositionSchema) })),
+  Schema.annotations({
+    identifier: "PartialColorStopPair",
+    description: "Color/stop pair with optional stop position for interactive prompting"
+  })
+)
+
+export const PartialColorStopPair = Schema.decodeUnknown(PartialColorStopPairSchema)
+export type PartialColorStopPair = typeof PartialColorStopPairSchema.Type
+
+/** A palette stop with its formatted output value */
+export const FormattedStopSchema = PaletteStopSchema.pipe(
+  Schema.extend(Schema.Struct({ value: Schema.String })),
+  Schema.annotations({
+    identifier: "FormattedStop",
+    description: "Palette stop with computed color value in the requested output format"
+  })
+)
+
+export const FormattedStop = Schema.decodeUnknown(FormattedStopSchema)
+export type FormattedStop = typeof FormattedStopSchema.Type
+
+/** Generated palette with formatted color values */
+export const PaletteResultSchema = Schema.Struct({
+  name: PaletteNameSchema,
+  inputColor: ColorStringSchema,
+  anchorStop: StopPositionSchema,
+  outputFormat: ColorSpaceSchema,
+  stops: Schema.Array(FormattedStopSchema).pipe(
+    Schema.itemsCount(10, { message: () => "Palette result must have exactly 10 stops" })
+  )
+}).pipe(
+  Schema.annotations({
+    identifier: "PaletteResult",
+    description: "Generated palette containing formatted color stops"
+  })
+)
+
+export const PaletteResult = Schema.decodeUnknown(PaletteResultSchema)
+export type PaletteResult = typeof PaletteResultSchema.Type
+
+/** A failed palette generation with error details */
+export const GenerationFailureSchema = ColorStopPairSchema.pipe(
+  Schema.extend(Schema.Struct({ error: Schema.String })),
+  Schema.annotations({
+    identifier: "GenerationFailure",
+    description: "Details of a failed palette generation attempt"
+  })
+)
+
+export type GenerationFailure = typeof GenerationFailureSchema.Type
+
+/** Collection of generated palettes with metadata */
+export const BatchResultSchema = Schema.Struct({
+  groupName: PaletteNameSchema,
+  outputFormat: ColorSpaceSchema,
+  generatedAt: ISOTimestampSchema,
+  palettes: Schema.NonEmptyArray(PaletteResultSchema),
+  failures: Schema.optionalWith(Schema.Array(GenerationFailureSchema), { default: () => [] })
+}).pipe(
+  Schema.annotations({
+    identifier: "BatchResult",
+    description: "Result of batch palette generation containing multiple palettes with metadata"
+  })
+)
+
+export const BatchResult = Schema.decodeUnknown(BatchResultSchema)
+export type BatchResult = typeof BatchResultSchema.Type

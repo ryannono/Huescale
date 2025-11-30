@@ -83,45 +83,47 @@ const initialTestState: CapturedOutput = {
  * - **Default**: Uses clack to display actual console output
  * - **Test**: Captures all output in memory for testing purposes
  */
-export class ConsoleService extends Effect.Service<ConsoleService>()("ConsoleService", {
-  effect: Effect.succeed(
-    {
-      /** Display intro banner */
-      intro: (message: string) => Effect.sync(() => clack.intro(message)),
-      /** Display outro message */
-      outro: (message: string) => Effect.sync(() => clack.outro(message)),
-      /** Display cancellation message */
-      cancel: (message: string) => Effect.sync(() => clack.cancel(message)),
-      /** Display a note with optional title */
-      note: (content: string, title?: string) => Effect.sync(() => clack.note(content, title)),
-      /** Log operations by level */
-      log: {
-        success: (message: string) => Effect.sync(() => clack.log.success(message)),
-        error: (message: string) => Effect.sync(() => clack.log.error(message)),
-        warning: (message: string) => Effect.sync(() => clack.log.warn(message)),
-        info: (message: string) => Effect.sync(() => clack.log.info(message)),
-        message: (message: string) => Effect.sync(() => clack.log.message(message)),
-        step: (message: string) => Effect.sync(() => clack.log.step(message))
-      },
-      /** Create a spinner with effectful operations */
-      spinner: () =>
-        Effect.sync(() => {
-          const s = clack.spinner()
-          return {
-            start: (msg) => Effect.sync(() => s.start(msg)),
-            stop: (msg) => Effect.sync(() => s.stop(msg)),
-            message: (msg) => Effect.sync(() => s.message(msg))
-          } satisfies SpinnerHandle
-        }),
-      /** Get captured output (only available in Test layer) */
-      getCaptured: (): Effect.Effect<CapturedOutput> => Effect.succeed(initialTestState)
-    } satisfies ConsoleServiceApi
-  )
-}) {
+export class ConsoleService
+  extends Effect.Service<ConsoleService>()("@oklch-palette-generator/services/ConsoleService", {
+    effect: Effect.succeed(
+      {
+        /** Display intro banner */
+        intro: (message: string) => Effect.sync(() => clack.intro(message)),
+        /** Display outro message */
+        outro: (message: string) => Effect.sync(() => clack.outro(message)),
+        /** Display cancellation message */
+        cancel: (message: string) => Effect.sync(() => clack.cancel(message)),
+        /** Display a note with optional title */
+        note: (content: string, title?: string) => Effect.sync(() => clack.note(content, title)),
+        /** Log operations by level */
+        log: {
+          success: (message: string) => Effect.sync(() => clack.log.success(message)),
+          error: (message: string) => Effect.sync(() => clack.log.error(message)),
+          warning: (message: string) => Effect.sync(() => clack.log.warn(message)),
+          info: (message: string) => Effect.sync(() => clack.log.info(message)),
+          message: (message: string) => Effect.sync(() => clack.log.message(message)),
+          step: (message: string) => Effect.sync(() => clack.log.step(message))
+        },
+        /** Create a spinner with effectful operations */
+        spinner: () =>
+          Effect.sync(() => {
+            const s = clack.spinner()
+            return {
+              start: (msg) => Effect.sync(() => s.start(msg)),
+              stop: (msg) => Effect.sync(() => s.stop(msg)),
+              message: (msg) => Effect.sync(() => s.message(msg))
+            } satisfies SpinnerHandle
+          }),
+        /** Get captured output (only available in Test layer) */
+        getCaptured: (): Effect.Effect<CapturedOutput> => Effect.succeed(initialTestState)
+      } satisfies ConsoleServiceApi
+    )
+  })
+{
   /**
    * Test layer that captures all output for assertions
    */
-  static readonly Test = Effect.Service<ConsoleService>()("ConsoleService", {
+  static readonly Test = Effect.Service<ConsoleService>()("@oklch-palette-generator/services/ConsoleService", {
     effect: Effect.gen(function*() {
       const stateRef = yield* Ref.make<CapturedOutput>(initialTestState)
 

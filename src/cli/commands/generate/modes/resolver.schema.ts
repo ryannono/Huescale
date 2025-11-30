@@ -4,8 +4,7 @@
 
 import { Schema } from "effect"
 import { ColorStringSchema } from "../../../../domain/color/color.schema.js"
-import { StopPositionSchema } from "../../../../domain/palette/palette.schema.js"
-import { ColorStopPairSchema } from "../../../../services/PaletteService/palette.schema.js"
+import { PartialColorStopPairSchema, StopPositionSchema } from "../../../../domain/palette/palette.schema.js"
 import {
   PartialTransformationBatchSchema,
   PartialTransformationRequestSchema,
@@ -16,16 +15,6 @@ import {
 // ============================================================================
 // Component Schemas
 // ============================================================================
-
-/** Color/stop pair with optional stop for interactive prompting. */
-const PartialColorStopPairSchema = ColorStopPairSchema.pipe(
-  Schema.omit("stop"),
-  Schema.extend(Schema.Struct({ stop: Schema.optional(StopPositionSchema) })),
-  Schema.annotations({
-    identifier: "PartialColorStopPair",
-    description: "Color/stop pair with optional stop position for interactive prompting"
-  })
-)
 
 /** Single transformation request (complete or requiring stop prompt). */
 const SingleTransformRequestSchema = Schema.Union(

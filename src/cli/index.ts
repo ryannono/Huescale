@@ -4,9 +4,9 @@ import { NodeRuntime } from "@effect/platform-node"
 import { Effect } from "effect"
 import { MainLive } from "../layers/MainLive.js"
 import { generate } from "./commands/generate/index.js"
-import { CancelledError } from "./prompts.js"
 // Self-reference import via package.json exports field
 import packageJson from "oklch-palette-generator/package.json" with { type: "json" }
+import { CancelledError } from "../services/PromptService/index.js"
 
 const cli = Command.make("color-palette-generator").pipe(
   Command.withSubcommands([generate])

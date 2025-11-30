@@ -5,8 +5,8 @@
  */
 
 import { Effect, Option as O } from "effect"
+import { buildExportConfig, displayPalette, executePaletteExport, generateAndDisplay } from "../../formatter.js"
 import type { SinglePaletteComplete } from "../../inputSpecs/singlePalette.input.js"
-import { buildExportConfig, displayPalette, executePaletteExport, generateAndDisplay } from "../../output/formatter.js"
 
 // ============================================================================
 // Types

@@ -9,13 +9,9 @@ import {
   displayBatch,
   displayPalette,
   generateAndDisplay
-} from "../../../src/cli/commands/generate/output/formatter.js"
+} from "../../../src/cli/commands/generate/formatter.js"
+import { type BatchResult, ISOTimestampSchema, type PaletteResult } from "../../../src/domain/palette/palette.schema.js"
 import { MainTest } from "../../../src/layers/MainTest.js"
-import {
-  type BatchResult,
-  ISOTimestampSchema,
-  type PaletteResult
-} from "../../../src/services/PaletteService/palette.schema.js"
 
 // ============================================================================
 // Test Fixtures

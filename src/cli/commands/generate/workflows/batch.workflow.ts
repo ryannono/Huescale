@@ -7,15 +7,17 @@
 
 import { Array as Arr, Effect, Option as O, pipe, Schema } from "effect"
 import { ColorSpaceSchema } from "../../../../domain/color/color.schema.js"
-import type { StopPosition } from "../../../../domain/palette/palette.schema.js"
-import { ColorStopPair } from "../../../../services/PaletteService/index.js"
+import {
+  ColorStopPair,
+  type PartialColorStopPair,
+  type StopPosition
+} from "../../../../domain/palette/palette.schema.js"
 import { PromptService } from "../../../../services/PromptService/index.js"
 import { promptForOutputFormat, promptForPaletteName, promptForStop } from "../../../prompts.js"
 import {
   type BatchPalettesComplete,
   BatchPalettesCompleteSchema,
-  type BatchPalettesPartial,
-  type PartialColorStopPair
+  type BatchPalettesPartial
 } from "../inputSpecs/batchPalettes.input.js"
 import {
   forEachNonEmpty,

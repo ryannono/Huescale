@@ -5,10 +5,9 @@
  */
 
 import { Array as Arr, Effect, Match, Option as O, pipe } from "effect"
-import type { StopPosition } from "../../../domain/palette/palette.schema.js"
+import type { BatchResult, PaletteResult, StopPosition } from "../../../domain/palette/palette.schema.js"
 import { ConfigService } from "../../../services/ConfigService.js"
 import { ConsoleService } from "../../../services/ConsoleService/index.js"
-import type { BatchResult, PaletteResult } from "../../../services/PaletteService/palette.schema.js"
 import { PromptService } from "../../../services/PromptService/index.js"
 import {
   promptForAnotherTransformation,

@@ -32,7 +32,7 @@ import {
  * Each mode has a corresponding completion method.
  */
 export class WorkflowCoordinator extends Effect.Service<WorkflowCoordinator>()(
-  "WorkflowCoordinator",
+  "@oklch-palette-generator/cli/commands/generate/workflows/WorkflowCoordinator",
   {
     effect: Effect.succeed({
       /**
@@ -82,4 +82,9 @@ export class WorkflowCoordinator extends Effect.Service<WorkflowCoordinator>()(
         completeBatchTransformInput(partial, pattern)
     })
   }
-) {}
+) {
+  /**
+   * Test layer - same as Default since WorkflowCoordinator has no environment-specific behavior
+   */
+  static readonly Test = WorkflowCoordinator.Default
+}

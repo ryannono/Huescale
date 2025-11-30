@@ -11,9 +11,6 @@ import { ModeResolver } from "../cli/commands/generate/modes/resolver.js"
 import { WorkflowCoordinator } from "../cli/commands/generate/workflows/WorkflowCoordinator.js"
 import { ConfigService } from "../services/ConfigService.js"
 import { ConsoleService } from "../services/ConsoleService/index.js"
-import { ExportService } from "../services/ExportService/index.js"
-import { PaletteService } from "../services/PaletteService/index.js"
-import { PatternService } from "../services/PatternService/index.js"
 import { PromptService } from "../services/PromptService/index.js"
 
 /**
@@ -21,30 +18,18 @@ import { PromptService } from "../services/PromptService/index.js"
  *
  * Dependency graph (automatically resolved by Effect):
  *
- *   NodeContext (FileSystem, Path)
- *        │
- *        ├──► PatternService (file I/O for patterns)
- *        │         │
- *        │         └──────────┐
- *        │                    │
- *        └──► ExportService   │
- *                             │
- *   ConfigService ────────────┼──► PaletteService
- *   (no deps)                 │
- *                             │
- *                    (Pattern + Config)
+ *   NodeContext (FileSystem, Path) - platform I/O for pattern loading and exports
  *
- *   ConsoleService (CLI output)
- *   PromptService (CLI input)
+ *   ConfigService (configuration defaults, no deps)
+ *   ConsoleService (CLI output, no deps)
+ *   PromptService (CLI input, no deps)
  *   ModeResolver (CLI mode detection, no deps)
+ *   WorkflowCoordinator (CLI workflow orchestration, no deps)
  */
 export const MainLive = Layer.mergeAll(
   ConfigService.Default,
   ConsoleService.Default,
-  ExportService.Default,
   ModeResolver.Default,
-  PaletteService.Default,
-  PatternService.Default,
   PromptService.Default,
   WorkflowCoordinator.Default,
   NodeContext.layer
