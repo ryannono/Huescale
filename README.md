@@ -5,8 +5,6 @@ A CLI tool for generating perceptually uniform 10-stop color palettes using the 
 [![npm version](https://img.shields.io/npm/v/oklch-palette-generator.svg)](https://www.npmjs.com/package/oklch-palette-generator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)]()
 
 <img width="497" alt="OKLCH Palette Generator Demo" src="https://github.com/user-attachments/assets/16a47ef7-646a-4853-8c08-ef3e601e2397" />
 
@@ -79,35 +77,35 @@ oklch-palette generate -c "#2D72D2>#FF6B6B::500" -f hex
 
 ### Modes
 
-| Mode | Syntax | Description |
-|------|--------|-------------|
-| **Single** | `#2D72D2` | Generate palette from one color |
-| **Batch** | `#2D72D2::500,#DB2C6F::600` | Multiple palettes at once |
-| **Single Transform** | `#2D72D2>#FF6B6B::500` | Apply ref's appearance to target's hue |
-| **One-to-Many Transform** | `#2D72D2>(#FF6B6B,#238551)::500` | Transform ref to multiple targets |
-| **Batch Transform** | `#2D72D2>#FF6B6B::500,#48AFF0>#238551::600` | Multiple transformations at once |
-| **Batch One-to-Many** | `#2D72D2>(#FF6B6B,#238551)::500,#48AFF0>(#DB2C6F,#FFB366)::600` | Multiple one-to-many transforms |
+| Mode                            | Syntax                                                            | Description                            |
+| ------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| **Single**                | `#2D72D2`                                                       | Generate palette from one color        |
+| **Batch**                 | `#2D72D2::500,#DB2C6F::600`                                     | Multiple palettes at once              |
+| **Single Transform**      | `#2D72D2>#FF6B6B::500`                                          | Apply ref's appearance to target's hue |
+| **One-to-Many Transform** | `#2D72D2>(#FF6B6B,#238551)::500`                                | Transform ref to multiple targets      |
+| **Batch Transform**       | `#2D72D2>#FF6B6B::500,#48AFF0>#238551::600`                     | Multiple transformations at once       |
+| **Batch One-to-Many**     | `#2D72D2>(#FF6B6B,#238551)::500,#48AFF0>(#DB2C6F,#FFB366)::600` | Multiple one-to-many transforms        |
 
 All modes support comma-separated or multi-line input for batch processing.
 
 ### Options
 
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--color` | `-c` | Color input (see modes above) | - |
-| `--stop` | `-s` | Stop position (100-1000) | 500 |
-| `--format` | `-f` | Output format: `hex`, `rgb`, `oklch`, `oklab` | hex |
-| `--name` | `-n` | Palette name | - |
-| `--export` | `-e` | Export type: `none`, `json`, `clipboard` | none |
-| `--path` | `-p` | JSON output path | ./palette.json |
+| Flag         | Short  | Description                                          | Default        |
+| ------------ | ------ | ---------------------------------------------------- | -------------- |
+| `--color`  | `-c` | Color input (see modes above)                        | -              |
+| `--stop`   | `-s` | Stop position (100-1000)                             | 500            |
+| `--format` | `-f` | Output format:`hex`, `rgb`, `oklch`, `oklab` | hex            |
+| `--name`   | `-n` | Palette name                                         | -              |
+| `--export` | `-e` | Export type:`none`, `json`, `clipboard`        | none           |
+| `--path`   | `-p` | JSON output path                                     | ./palette.json |
 
 ### Stop Positions
 
-| Stop | Description |
-|------|-------------|
-| 100 | Lightest |
-| 500 | Medium (reference) |
-| 1000 | Darkest |
+| Stop | Description        |
+| ---- | ------------------ |
+| 100  | Lightest           |
+| 500  | Medium (reference) |
+| 1000 | Darkest            |
 
 ## How It Works
 
