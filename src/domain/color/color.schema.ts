@@ -57,19 +57,24 @@ const BoundedInt = (
 // ============================================================================
 
 /** Lightness (0-1) - shared by OKLCH and OKLAB */
-const LightnessSchema = BoundedNumber(0, 1, "Lightness", "Lightness value (0 = black, 1 = white)")
+export const LightnessSchema = BoundedNumber(0, 1, "Lightness", "Lightness value (0 = black, 1 = white)")
 
 /** Chroma for OKLCH (0-0.5) */
-const ChromaSchema = BoundedNumber(0, 0.5, "Chroma", "Chroma value (0 = gray, 0.5 = maximum saturation)")
+export const ChromaSchema = BoundedNumber(0, 0.5, "Chroma", "Chroma value (0 = gray, 0.5 = maximum saturation)")
 
 /** Hue angle (0 <= h < 360) */
-const HueSchema = BoundedNumberExclusive(0, 360, "Hue", "Hue angle in degrees (0 = red, 120 = green, 240 = blue)")
+export const HueSchema = BoundedNumberExclusive(
+  0,
+  360,
+  "Hue",
+  "Hue angle in degrees (0 = red, 120 = green, 240 = blue)"
+)
 
 /** RGB channel (0-255 integer) */
 const RGBChannelSchema = (channel: string) => BoundedInt(0, 255, channel, `${channel} channel value (0-255)`)
 
 /** Alpha channel (0-1) */
-const AlphaSchema = BoundedNumber(0, 1, "Alpha", "Alpha/opacity value (0 = transparent, 1 = opaque)")
+export const AlphaSchema = BoundedNumber(0, 1, "Alpha", "Alpha/opacity value (0 = transparent, 1 = opaque)")
 
 /** Optional alpha with default of 1 */
 const OptionalAlpha = Schema.optionalWith(AlphaSchema, { default: () => 1 })
