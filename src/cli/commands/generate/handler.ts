@@ -35,14 +35,16 @@ import {
   Initializing,
   SelectingMode
 } from "./types/sessionPhase.js"
-import { buildBatchPartialFromPairs } from "./workflows/batch.workflow.js"
-import { buildPartialFromOptions } from "./workflows/singlePalette.workflow.js"
+import { buildBatchPartialFromPairs, completeBatchPalettesInput } from "./workflows/batch.workflow.js"
+import { buildPartialFromOptions, completeSinglePaletteInput } from "./workflows/singlePalette.workflow.js"
 import {
   buildBatchTransformPartial,
   buildManyTransformPartial,
-  buildSingleTransformPartial
+  buildSingleTransformPartial,
+  completeBatchTransformInput,
+  completeManyTransformInput,
+  completeSingleTransformInput
 } from "./workflows/transform.workflow.js"
-import { WorkflowCoordinator } from "./workflows/WorkflowCoordinator.js"
 
 // ============================================================================
 // Constants
@@ -51,11 +53,17 @@ import { WorkflowCoordinator } from "./workflows/WorkflowCoordinator.js"
 const INTRO_MESSAGE = "Color Palette Generator"
 const OUTRO_MESSAGE = "Done!"
 
+/** Fallback color when reference/target is missing */
+const FALLBACK_COLOR = "#000000"
+
+/** Default stop position for fallback transformations */
+const FALLBACK_STOP = 500
+
 /** Default fallback transformation item when none are provided */
 const DEFAULT_FALLBACK_TRANSFORMATION: PartialTransformationItem = {
-  reference: "#000000",
-  target: "#000000",
-  stop: 500
+  reference: FALLBACK_COLOR,
+  target: FALLBACK_COLOR,
+  stop: FALLBACK_STOP
 }
 
 // ============================================================================
@@ -251,10 +259,9 @@ const handlePasteMode = (isInteractive: boolean, context: ModeHandlerContext) =>
   pipe(
     Effect.all({
       parsedPairs: pipe(promptForBatchPaste(), Effect.flatMap(parseBatchPairsInput)),
-      coordinator: WorkflowCoordinator,
       config: ConfigService
     }),
-    Effect.flatMap(({ config, coordinator, parsedPairs }) =>
+    Effect.flatMap(({ config, parsedPairs }) =>
       pipe(
         config.getConfig(),
         Effect.flatMap((configData) => {
@@ -266,7 +273,7 @@ const handlePasteMode = (isInteractive: boolean, context: ModeHandlerContext) =>
               patternOpt: O.some(context.pattern)
             }
           )
-          return coordinator.completeBatchPalettes(partial, context.pattern, configData.defaultBatchName)
+          return completeBatchPalettesInput(partial, context.pattern, configData.defaultBatchName)
         })
       )
     ),
@@ -285,11 +292,8 @@ const handlePasteMode = (isInteractive: boolean, context: ModeHandlerContext) =>
 
 const handleInteractiveTransformLoop = (context: ModeHandlerContext) =>
   pipe(
-    Effect.all({
-      transformations: collectTransformationsRecursively([]),
-      coordinator: WorkflowCoordinator
-    }),
-    Effect.flatMap(({ coordinator, transformations }) => {
+    collectTransformationsRecursively([]),
+    Effect.flatMap((transformations) => {
       const partialItems = toCompleteTransformationItems(transformations)
       const partial = buildBatchTransformPartial({
         transformations: partialItems,
@@ -297,7 +301,7 @@ const handleInteractiveTransformLoop = (context: ModeHandlerContext) =>
         nameOpt: context.nameOpt,
         patternOpt: O.some(context.pattern)
       })
-      return coordinator.completeBatchTransform(partial, context.pattern)
+      return completeBatchTransformInput(partial, context.pattern)
     }),
     Effect.flatMap((completeInput) =>
       executeBatchTransform(completeInput, {
@@ -393,137 +397,122 @@ const handleSinglePaletteMode = (
   options: GenerateOptions,
   context: ModeHandlerContext
 ) =>
-  pipe(
-    logPhase(GatheringInput({ mode })),
-    Effect.zipRight(WorkflowCoordinator),
-    Effect.flatMap((coordinator) => {
-      const partial = buildPartialFromOptions({
-        colorOpt: options.colorOpt,
-        formatOpt: context.formatOpt,
-        nameOpt: context.nameOpt,
-        patternOpt: O.some(context.pattern),
-        stopOpt: options.stopOpt
-      })
-      return coordinator.completeSinglePalette(partial, context.pattern)
-    }),
-    Effect.flatMap((completeInput) =>
-      executeSinglePalette(completeInput, {
-        exportOpt: context.exportOpt,
-        exportPath: context.exportPath
-      })
-    )
-  )
+  Effect.gen(function*() {
+    yield* logPhase(GatheringInput({ mode }))
+
+    const partial = buildPartialFromOptions({
+      colorOpt: options.colorOpt,
+      formatOpt: context.formatOpt,
+      nameOpt: context.nameOpt,
+      patternOpt: O.some(context.pattern),
+      stopOpt: options.stopOpt
+    })
+
+    const completeInput = yield* completeSinglePaletteInput(partial, context.pattern)
+
+    return yield* executeSinglePalette(completeInput, {
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath
+    })
+  })
 
 const handleBatchPalettesMode = (
   mode: Extract<ExecutionMode, { _tag: "BatchPalettes" }>,
   context: ModeHandlerContext
 ) =>
-  pipe(
-    logPhase(GatheringInput({ mode })),
-    Effect.zipRight(Effect.all({
-      coordinator: WorkflowCoordinator,
-      config: ConfigService
-    })),
-    Effect.flatMap(({ config, coordinator }) =>
-      pipe(
-        config.getConfig(),
-        Effect.flatMap((configData) => {
-          const partial = buildBatchPartialFromPairs(
-            Arr.map(mode.pairs, (p) => ({ color: p.color, stop: p.stop })),
-            {
-              formatOpt: context.formatOpt,
-              nameOpt: context.nameOpt,
-              patternOpt: O.some(context.pattern)
-            }
-          )
-          return coordinator.completeBatchPalettes(partial, context.pattern, configData.defaultBatchName)
-        })
-      )
-    ),
-    Effect.flatMap((completeInput) =>
-      executeBatchPalettes(completeInput, {
-        exportOpt: context.exportOpt,
-        exportPath: context.exportPath,
-        isInteractive: false
-      })
+  Effect.gen(function*() {
+    yield* logPhase(GatheringInput({ mode }))
+
+    const config = yield* ConfigService
+    const configData = yield* config.getConfig()
+
+    const partial = buildBatchPartialFromPairs(
+      Arr.map(mode.pairs, (p) => ({ color: p.color, stop: p.stop })),
+      {
+        formatOpt: context.formatOpt,
+        nameOpt: context.nameOpt,
+        patternOpt: O.some(context.pattern)
+      }
     )
-  )
+
+    const completeInput = yield* completeBatchPalettesInput(partial, context.pattern, configData.defaultBatchName)
+
+    return yield* executeBatchPalettes(completeInput, {
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath,
+      isInteractive: false
+    })
+  })
 
 const handleSingleTransformMode = (
   mode: Extract<ExecutionMode, { _tag: "SingleTransform" }>,
   context: ModeHandlerContext
 ) =>
-  pipe(
-    logPhase(GatheringInput({ mode })),
-    Effect.zipRight(WorkflowCoordinator),
-    Effect.flatMap((coordinator) => {
-      const partial = buildSingleTransformPartial({
-        reference: mode.input.reference,
-        target: mode.input.target,
-        stopOpt: O.fromNullable(mode.input.stop),
-        formatOpt: context.formatOpt,
-        nameOpt: context.nameOpt,
-        patternOpt: O.some(context.pattern)
-      })
-      return coordinator.completeSingleTransform(partial, context.pattern)
-    }),
-    Effect.flatMap((completeInput) =>
-      executeSingleTransform(completeInput, {
-        exportOpt: context.exportOpt,
-        exportPath: context.exportPath
-      })
-    )
-  )
+  Effect.gen(function*() {
+    yield* logPhase(GatheringInput({ mode }))
+
+    const partial = buildSingleTransformPartial({
+      reference: mode.input.reference,
+      target: mode.input.target,
+      stopOpt: O.fromNullable(mode.input.stop),
+      formatOpt: context.formatOpt,
+      nameOpt: context.nameOpt,
+      patternOpt: O.some(context.pattern)
+    })
+
+    const completeInput = yield* completeSingleTransformInput(partial, context.pattern)
+
+    return yield* executeSingleTransform(completeInput, {
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath
+    })
+  })
 
 const handleManyTransformMode = (
   mode: Extract<ExecutionMode, { _tag: "ManyTransform" }>,
   context: ModeHandlerContext
 ) =>
-  pipe(
-    logPhase(GatheringInput({ mode })),
-    Effect.zipRight(WorkflowCoordinator),
-    Effect.flatMap((coordinator) => {
-      const partial = buildManyTransformPartial({
-        reference: mode.reference,
-        targets: mode.targets,
-        stopOpt: O.fromNullable(mode.stop),
-        formatOpt: context.formatOpt,
-        nameOpt: context.nameOpt,
-        patternOpt: O.some(context.pattern)
-      })
-      return coordinator.completeManyTransform(partial, context.pattern)
-    }),
-    Effect.flatMap((completeInput) =>
-      executeManyTransform(completeInput, {
-        exportOpt: context.exportOpt,
-        exportPath: context.exportPath
-      })
-    )
-  )
+  Effect.gen(function*() {
+    yield* logPhase(GatheringInput({ mode }))
+
+    const partial = buildManyTransformPartial({
+      reference: mode.reference,
+      targets: mode.targets,
+      stopOpt: O.fromNullable(mode.stop),
+      formatOpt: context.formatOpt,
+      nameOpt: context.nameOpt,
+      patternOpt: O.some(context.pattern)
+    })
+
+    const completeInput = yield* completeManyTransformInput(partial, context.pattern)
+
+    return yield* executeManyTransform(completeInput, {
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath
+    })
+  })
 
 const handleBatchTransformMode = (
   mode: Extract<ExecutionMode, { _tag: "BatchTransform" }>,
   context: ModeHandlerContext
 ) =>
-  pipe(
-    logPhase(GatheringInput({ mode })),
-    Effect.zipRight(WorkflowCoordinator),
-    Effect.flatMap((coordinator) => {
-      const partial = buildBatchTransformPartial({
-        transformations: toPartialTransformationItems(mode.transformations),
-        formatOpt: context.formatOpt,
-        nameOpt: context.nameOpt,
-        patternOpt: O.some(context.pattern)
-      })
-      return coordinator.completeBatchTransform(partial, context.pattern)
-    }),
-    Effect.flatMap((completeInput) =>
-      executeBatchTransform(completeInput, {
-        exportOpt: context.exportOpt,
-        exportPath: context.exportPath
-      })
-    )
-  )
+  Effect.gen(function*() {
+    yield* logPhase(GatheringInput({ mode }))
+
+    const partial = buildBatchTransformPartial({
+      transformations: toPartialTransformationItems(mode.transformations),
+      formatOpt: context.formatOpt,
+      nameOpt: context.nameOpt,
+      patternOpt: O.some(context.pattern)
+    })
+
+    const completeInput = yield* completeBatchTransformInput(partial, context.pattern)
+
+    return yield* executeBatchTransform(completeInput, {
+      exportOpt: context.exportOpt,
+      exportPath: context.exportPath
+    })
+  })
 
 // ============================================================================
 // Transformation Conversion Helpers
@@ -578,8 +567,8 @@ const toPartialTransformationItems = (
 const createFallbackPartialItem = (
   t: ResolverTransformationRequest
 ): PartialTransformationItem => ({
-  reference: "reference" in t && t.reference !== undefined ? t.reference : "#000000",
-  target: "target" in t && t.target !== undefined ? t.target : "#000000",
+  reference: "reference" in t && t.reference !== undefined ? t.reference : FALLBACK_COLOR,
+  target: "target" in t && t.target !== undefined ? t.target : FALLBACK_COLOR,
   stop: "stop" in t ? t.stop : undefined
 })
 

@@ -8,7 +8,6 @@
 import { NodeContext } from "@effect/platform-node"
 import { Layer } from "effect"
 import { ModeResolver } from "../cli/commands/generate/modes/resolver.js"
-import { WorkflowCoordinator } from "../cli/commands/generate/workflows/WorkflowCoordinator.js"
 import { ConfigService } from "../services/ConfigService.js"
 import { ConsoleService } from "../services/ConsoleService/index.js"
 import { PromptService } from "../services/PromptService/index.js"
@@ -24,13 +23,11 @@ import { PromptService } from "../services/PromptService/index.js"
  *   ConsoleService (CLI output, no deps)
  *   PromptService (CLI input, no deps)
  *   ModeResolver (CLI mode detection, no deps)
- *   WorkflowCoordinator (CLI workflow orchestration, no deps)
  */
 export const MainLive = Layer.mergeAll(
   ConfigService.Default,
   ConsoleService.Default,
   ModeResolver.Default,
   PromptService.Default,
-  WorkflowCoordinator.Default,
   NodeContext.layer
 )

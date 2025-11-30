@@ -7,7 +7,6 @@
 import { NodeContext } from "@effect/platform-node"
 import { Layer } from "effect"
 import { ModeResolver } from "../cli/commands/generate/modes/resolver.js"
-import { WorkflowCoordinator } from "../cli/commands/generate/workflows/WorkflowCoordinator.js"
 import { ConfigService } from "../services/ConfigService.js"
 import { ConsoleService } from "../services/ConsoleService/index.js"
 import { PromptService } from "../services/PromptService/index.js"
@@ -31,8 +30,6 @@ export const MainTest = Layer.mergeAll(
   ConsoleService.Test,
   ModeResolver.Test,
   PromptService.Test,
-  // Pure services
-  WorkflowCoordinator.Default,
   // Platform dependencies for file I/O
   NodeContext.layer
 )
