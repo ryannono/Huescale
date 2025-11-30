@@ -24,9 +24,6 @@ import {
 } from "../services/ExportService/export.schema.js"
 import { CancelledError, PromptService } from "../services/PromptService/index.js"
 
-// Re-export CancelledError for backwards compatibility
-export { CancelledError }
-
 // ============================================================================
 // Public API
 // ============================================================================

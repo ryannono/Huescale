@@ -10,16 +10,16 @@ import type { ColorSpace as ColorSpaceType } from "../../../../../domain/color/c
 import type { StopPosition } from "../../../../../domain/palette/palette.schema.js"
 import { ConfigService } from "../../../../../services/ConfigService.js"
 import { BatchResult, ISOTimestamp } from "../../../../../services/PaletteService/palette.schema.js"
-import type { BatchTransformComplete } from "../../inputSpecs/batchTransform.input.js"
-import type { ManyTransformComplete } from "../../inputSpecs/manyTransform.input.js"
-import type { SingleTransformComplete } from "../../inputSpecs/singleTransform.input.js"
 import {
   buildExportConfig,
   displayPalette,
   executeBatchExport,
   executePaletteExport,
   generateAndDisplay
-} from "../../output/formatter.js"
+} from "../../formatter.js"
+import type { BatchTransformComplete } from "../../inputSpecs/batchTransform.input.js"
+import type { ManyTransformComplete } from "../../inputSpecs/manyTransform.input.js"
+import type { SingleTransformComplete } from "../../inputSpecs/singleTransform.input.js"
 
 // ============================================================================
 // Types

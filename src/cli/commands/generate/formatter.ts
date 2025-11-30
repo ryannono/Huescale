@@ -6,17 +6,17 @@
  */
 
 import { Effect, Option as O, ParseResult, pipe } from "effect"
-import { ColorSpace } from "../../../../domain/color/color.schema.js"
-import { StopPosition } from "../../../../domain/palette/palette.schema.js"
-import { ConsoleService } from "../../../../services/ConsoleService/index.js"
-import type { ExportConfig, JSONPath as JSONPathType } from "../../../../services/ExportService/export.schema.js"
-import { JSONPath } from "../../../../services/ExportService/export.schema.js"
-import { ExportService } from "../../../../services/ExportService/index.js"
-import { PaletteService } from "../../../../services/PaletteService/index.js"
-import { BatchResult, PaletteRequest, type PaletteResult } from "../../../../services/PaletteService/palette.schema.js"
-import { PromptService } from "../../../../services/PromptService/index.js"
-import { CancelledError, promptForJsonPath } from "../../../prompts.js"
-import { validateExportTarget } from "../validation.js"
+import type { ColorSpace } from "../../../domain/color/color.schema.js"
+import type { StopPosition } from "../../../domain/palette/palette.schema.js"
+import { ConsoleService } from "../../../services/ConsoleService/index.js"
+import type { ExportConfig, JSONPath as JSONPathType } from "../../../services/ExportService/export.schema.js"
+import { JSONPath } from "../../../services/ExportService/export.schema.js"
+import { ExportService } from "../../../services/ExportService/index.js"
+import { PaletteService } from "../../../services/PaletteService/index.js"
+import { BatchResult, PaletteRequest, type PaletteResult } from "../../../services/PaletteService/palette.schema.js"
+import { CancelledError, PromptService } from "../../../services/PromptService/index.js"
+import { promptForJsonPath } from "../../prompts.js"
+import { validateExportTarget } from "./validation.js"
 
 // ============================================================================
 // Constants
