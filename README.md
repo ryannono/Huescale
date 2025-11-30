@@ -1,6 +1,6 @@
 # OKLCH Palette Generator
 
-A CLI tool for generating perceptually uniform 10-stop color palettes using the OKLCH color space.
+A CLI tool for generating perceptually uniform 10-stop color palettes using the OKLCH color space, with DTCG-compliant design token export.
 
 [![npm version](https://img.shields.io/npm/v/oklch-palette-generator.svg)](https://www.npmjs.com/package/oklch-palette-generator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,10 +11,11 @@ A CLI tool for generating perceptually uniform 10-stop color palettes using the 
 ## Features
 
 - **Perceptually uniform** - Uses OKLCH color space for consistent lightness/chroma progression
+- **DTCG-compliant export** - Outputs design tokens in [DTCG 2025.10](https://www.designtokens.org/) format
 - **Pattern learning** - Extracts transformation patterns from example palettes
 - **Multiple modes** - Single, batch, and transformation modes (all combinable)
 - **Flexible input** - Any stop position (100-1000) as anchor; supports hex, rgb, hsl, oklch, oklab
-- **Multiple exports** - Console, JSON file, or clipboard
+- **Multiple exports** - Console, JSON file, or clipboard (JSON/clipboard use DTCG format)
 
 ## Installation
 
@@ -71,33 +72,39 @@ oklch-palette generate -c "#2D72D2::500,#DB2C6F::600" -f hex
 
 # Single transformation
 oklch-palette generate -c "#2D72D2>#FF6B6B::500" -f hex
+
+# Export to JSON file (DTCG format)
+oklch-palette generate -c "#2D72D2" -e json -p ./tokens.json
+
+# Copy to clipboard (DTCG format)
+oklch-palette generate -c "#2D72D2" -e clipboard
 ```
 
 ## Usage
 
 ### Modes
 
-| Mode                            | Syntax                                                            | Description                            |
-| ------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| **Single**                | `#2D72D2`                                                       | Generate palette from one color        |
-| **Batch**                 | `#2D72D2::500,#DB2C6F::600`                                     | Multiple palettes at once              |
-| **Single Transform**      | `#2D72D2>#FF6B6B::500`                                          | Apply ref's appearance to target's hue |
-| **One-to-Many Transform** | `#2D72D2>(#FF6B6B,#238551)::500`                                | Transform ref to multiple targets      |
-| **Batch Transform**       | `#2D72D2>#FF6B6B::500,#48AFF0>#238551::600`                     | Multiple transformations at once       |
-| **Batch One-to-Many**     | `#2D72D2>(#FF6B6B,#238551)::500,#48AFF0>(#DB2C6F,#FFB366)::600` | Multiple one-to-many transforms        |
+| Mode                        | Syntax                                                            | Description                            |
+| --------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
+| **Single**                  | `#2D72D2`                                                         | Generate palette from one color        |
+| **Batch**                   | `#2D72D2::500,#DB2C6F::600`                                       | Multiple palettes at once              |
+| **Single Transform**        | `#2D72D2>#FF6B6B::500`                                            | Apply ref's appearance to target's hue |
+| **One-to-Many Transform**   | `#2D72D2>(#FF6B6B,#238551)::500`                                  | Transform ref to multiple targets      |
+| **Batch Transform**         | `#2D72D2>#FF6B6B::500,#48AFF0>#238551::600`                       | Multiple transformations at once       |
+| **Batch One-to-Many**       | `#2D72D2>(#FF6B6B,#238551)::500,#48AFF0>(#DB2C6F,#FFB366)::600`   | Multiple one-to-many transforms        |
 
 All modes support comma-separated or multi-line input for batch processing.
 
 ### Options
 
-| Flag         | Short  | Description                                          | Default        |
-| ------------ | ------ | ---------------------------------------------------- | -------------- |
-| `--color`  | `-c` | Color input (see modes above)                        | -              |
-| `--stop`   | `-s` | Stop position (100-1000)                             | 500            |
-| `--format` | `-f` | Output format:`hex`, `rgb`, `oklch`, `oklab` | hex            |
-| `--name`   | `-n` | Palette name                                         | -              |
-| `--export` | `-e` | Export type:`none`, `json`, `clipboard`        | none           |
-| `--path`   | `-p` | JSON output path                                     | ./palette.json |
+| Flag       | Short | Description                                  | Default        |
+| ---------- | ----- | -------------------------------------------- | -------------- |
+| `--color`  | `-c`  | Color input (see modes above)                | -              |
+| `--stop`   | `-s`  | Stop position (100-1000)                     | 500            |
+| `--format` | `-f`  | Output format: `hex`, `rgb`, `oklch`, `oklab`| hex            |
+| `--name`   | `-n`  | Palette name                                 | -              |
+| `--export` | `-e`  | Export type: `none`, `json`, `clipboard`     | none           |
+| `--path`   | `-p`  | JSON output path                             | ./palette.json |
 
 ### Stop Positions
 
@@ -106,6 +113,41 @@ All modes support comma-separated or multi-line input for batch processing.
 | 100  | Lightest           |
 | 500  | Medium (reference) |
 | 1000 | Darkest            |
+
+## DTCG Design Token Export
+
+JSON and clipboard exports follow the [DTCG 2025.10 specification](https://www.designtokens.org/). Color values use the structured OKLCH format with hex fallbacks:
+
+```json
+{
+  "blue": {
+    "$type": "color",
+    "$extensions": {
+      "oklch-palette-generator": {
+        "inputColor": "#2D72D2",
+        "anchorStop": 500,
+        "outputFormat": "hex"
+      }
+    },
+    "500": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.57, 0.15, 259],
+        "hex": "#2D72D2"
+      },
+      "$extensions": {
+        "oklch-palette-generator": {
+          "position": 500,
+          "formattedValue": "#2d72d2"
+        }
+      }
+    }
+  }
+}
+```
+
+The `$extensions` namespace preserves generation metadata (input color, anchor stop, output format) for reproducibility.
 
 ## How It Works
 
@@ -141,4 +183,4 @@ MIT
 
 ---
 
-**Perceptually uniform palettes, type-safe from end to end.**
+**Perceptually uniform palettes, DTCG-compliant, type-safe from end to end.**

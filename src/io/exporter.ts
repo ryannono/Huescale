@@ -2,7 +2,7 @@
  * Export I/O implementations.
  *
  * Factory functions that create export functions for different targets:
- * - Filesystem (JSON files)
+ * - Filesystem (JSON files in DTCG format)
  * - Clipboard
  * - In-memory (testing)
  */
@@ -10,6 +10,7 @@
 import { FileSystem, Path } from "@effect/platform"
 import clipboardy from "clipboardy"
 import { Data, Effect, Match } from "effect"
+import { batchResultToDTCG, paletteResultToDTCG } from "../domain/dtcg/transformer.js"
 import type { BatchResult, PaletteResult } from "../domain/palette/palette.schema.js"
 import type { ExportConfig } from "./io.schema.js"
 import { JSONPath } from "./io.schema.js"
@@ -62,7 +63,7 @@ export const makeFileExporter = (
 (data, config) =>
   Match.value(config.target).pipe(
     Match.when("none", () => Effect.void),
-    Match.when("clipboard", () => toClipboard(serializeForExport(data))),
+    Match.when("clipboard", () => serializeForExport(data).pipe(Effect.flatMap(toClipboard))),
     Match.when("json", () =>
       Effect.gen(function*() {
         const validatedPath = yield* JSONPath(config.jsonPath).pipe(
@@ -74,7 +75,8 @@ export const makeFileExporter = (
               })
           )
         )
-        yield* toFile(serializeForExport(data), validatedPath, fs, path)
+        const json = yield* serializeForExport(data)
+        yield* toFile(json, validatedPath, fs, path)
       })),
     Match.exhaustive
   )
@@ -103,21 +105,26 @@ export const makeMemoryExporter = (
   captures: Array<CapturedExport>
 ): ExportData =>
 (data, config) =>
-  Effect.sync(() => {
-    const newCapture: CapturedExport = {
-      data,
-      config,
-      serialized: serializeForExport(data)
-    }
-    captures.push(newCapture)
-  })
+  serializeForExport(data).pipe(
+    Effect.flatMap((serialized) =>
+      Effect.sync(() => {
+        captures.push({ config, data, serialized })
+      })
+    )
+  )
 
 // ============================================================================
 // Internal Helpers
 // ============================================================================
 
-/** Serialize data to JSON string */
-const serializeForExport = <T>(data: T): string => JSON.stringify(data, null, JSON_INDENT)
+/** Type guard to check if data is a BatchResult */
+const isBatchResult = (data: ExportableData): data is BatchResult => "palettes" in data
+
+/** Transform data to DTCG format and serialize to JSON string */
+const serializeForExport = (data: ExportableData): Effect.Effect<string, never> =>
+  (isBatchResult(data) ? batchResultToDTCG(data) : paletteResultToDTCG(data)).pipe(
+    Effect.map((dtcg) => JSON.stringify(dtcg, null, JSON_INDENT))
+  )
 
 /** Write JSON to file */
 const toFile = (
