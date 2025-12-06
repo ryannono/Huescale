@@ -12,7 +12,6 @@ const cli = Command.make("huescale").pipe(
   Command.withSubcommands([generate])
 )
 
-
 const runCli = Command.run(cli, {
   name: "Huescale",
   version: packageJson.version
