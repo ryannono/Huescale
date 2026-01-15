@@ -2,7 +2,7 @@
   "name": "gray-source",
   "description": "Gray palette extracted from source image",
   "stops": [
-    { "position": 100, "hex": "#DFE0E2" },
+    { "position": 100, "hex": "#FFFFFF" },
     { "position": 200, "hex": "#C2C6CB" },
     { "position": 300, "hex": "#C0C2C5" },
     { "position": 400, "hex": "#85898F" },
