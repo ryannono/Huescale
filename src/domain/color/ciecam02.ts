@@ -89,14 +89,8 @@ const CONE_RESPONSE_OFFSET = 27.13
 /** Additive constant in the post-adaptation response */
 const POST_ADAPTATION_OFFSET = 0.1
 
-/** Eccentricity factor table hue angles (degrees) */
-const ECCENTRICITY_HUE_ANGLES = [20.14, 90.00, 164.25, 237.53, 380.14] as const
-
-/** Eccentricity factor table values */
-const ECCENTRICITY_VALUES = [0.8, 0.7, 1.0, 1.2, 0.8] as const
-
-/** Eccentricity factor table H values */
-const ECCENTRICITY_H_VALUES = [0.0, 100.0, 200.0, 300.0, 400.0] as const
+/** Offset in the eccentricity factor cosine term (radians) */
+const ECCENTRICITY_HUE_OFFSET = 2
 
 // ============================================================================
 // Types
