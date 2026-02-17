@@ -9,7 +9,7 @@
  * Reference: CIE 159:2004, "A colour appearance model for colour management systems"
  */
 
-import { Array as Arr, Data, Effect, pipe } from "effect"
+import { Data, Effect } from "effect"
 
 // ============================================================================
 // Errors
