@@ -288,6 +288,9 @@ export const forward = (
 /**
  * Inverse CIECAM02 transform: appearance correlates (J, C, h) → XYZ
  * under the given viewing conditions.
+ *
+ * Recovers the XYZ tristimulus values that would produce the given
+ * appearance (J, C, h) under the specified viewing conditions.
  */
 export const inverse = (
   correlates: Pick<AppearanceCorrelates, "J" | "C" | "h">,
@@ -299,19 +302,20 @@ export const inverse = (
       const { J, C, h } = correlates
       const { Fl, Nbb, Ncb, z, Aw, D, surround, n } = conditions
 
-      // Step 1: Recover A from J
+      // Step 1: Recover achromatic response A from lightness J
       const A = Aw * Math.pow(J / 100, 1 / (surround.c * z))
 
-      // Step 2: Recover t from C and J
-      const t = Math.pow(
-        C / (Math.pow(J / 100, 0.5) * (1.64 - Math.pow(0.29, n))),
-        1 / 0.9
-      )
+      // Step 2: Recover colorfulness parameter t from chroma C
+      const Jroot = Math.pow(J / 100, 0.5)
+      const chromaScale = 1.64 - Math.pow(0.29, n)
+      const t = C / (Jroot * chromaScale) > 0
+        ? Math.pow(C / (Jroot * chromaScale), 1 / 0.9)
+        : 0
 
-      // Step 3: Eccentricity factor
+      // Step 3: Eccentricity factor for this hue
       const et = eccentricityFactor(h)
 
-      // Step 4: Recover a and b from t, h, A
+      // Step 4: Compute p1, p2 intermediates
       const hRad = h * DEG_TO_RAD
       const cosH = Math.cos(hRad)
       const sinH = Math.sin(hRad)
@@ -319,35 +323,64 @@ export const inverse = (
       const p1 = (50000 / 13) * surround.Nc * Ncb * et
       const p2 = A / Nbb + 0.305
 
-      // Solve for a and b
-      // From the forward model:
-      //   Ra + Ga + 21*Ba/20 = 20*p2/21 (derived from A equation and the definitions)
-      //   t = p1 * sqrt(a² + b²) / (Ra + Ga + 21*Ba/20)
-      // So sqrt(a² + b²) = t * (Ra + Ga + 21*Ba/20) / p1
+      // Step 5: Solve for a and b from the forward model equations.
+      // In the forward model:
+      //   t = p1 * sqrt(a² + b²) / (Ra' + Ga' + 21·Ba'/20)
+      //   Ra' = (460·p2 + 451·a + 288·b) / 1403
+      //   Ga' = (460·p2 - 891·a - 261·b) / 1403
+      //   Ba' = (460·p2 - 220·a - 6300·b) / 1403
+      //   Ra' + Ga' + 21·Ba'/20 = (460·p2·(1+1+21/20) + a·(451-891-220·21/20) + b·(288-261-6300·21/20)) / 1403
+      // Simplifying: Ra' + Ga' + 21·Ba'/20 = p2·(920 + 460·21/20)/1403 + ... which gets messy.
       //
-      // We use the approach from CIE 159:2004 Appendix A (inverse model):
-      // Solve the linear system for Ra, Ga, Ba from A, a, b, then invert.
+      // Standard inverse approach: substitute Ra', Ga', Ba' in terms of p2, a, b
+      // into the sum Ra'+Ga'+21Ba'/20 to express it in terms of p2, a, b.
+      //   sum = (460p2 + 451a + 288b + 460p2 - 891a - 261b + (21/20)(460p2 - 220a - 6300b)) / 1403
+      //       = (920p2 - 440a + 27b + 483p2 - 231a - 6615b) / 1403
+      //       = (1403p2 - 671a - 6588b) / 1403
+      //       = p2 - (671a + 6588b) / 1403
+      // Hmm let me recompute carefully...
+      //   460+460 = 920 for p2
+      //   451-891 = -440 for a
+      //   288-261 = 27 for b
+      //   (21/20)*460 = 483 for p2
+      //   (21/20)*(-220) = -231 for a
+      //   (21/20)*(-6300) = -6615 for b
+      //   p2 coeff: 920+483 = 1403 → p2
+      //   a coeff: -440-231 = -671
+      //   b coeff: 27-6615 = -6588
+      // So sum = p2 + (-671a - 6588b)/1403
 
-      const gamma = 23 * (p2 + 0.305) * t / (23 * p1 + 11 * t * cosH + 108 * t * sinH)
-      const a = gamma * cosH
-      const b = gamma * sinH
+      // Then: t = p1 * sqrt(a²+b²) / (p2 + (-671a - 6588b)/1403)
+      // With a = r·cosH, b = r·sinH where r = sqrt(a²+b²):
+      //   t = p1·r / (p2 + r·(-671cosH - 6588sinH)/1403)
+      // Solving for r:
+      //   t·p2 + t·r·(-671cosH - 6588sinH)/1403 = p1·r
+      //   t·p2 = r·(p1 - t·(-671cosH - 6588sinH)/1403)
+      //   r = t·p2 / (p1 + t·(671cosH + 6588sinH)/1403)
 
-      // Step 5: Recover post-adaptation cone responses
+      const r = t === 0
+        ? 0
+        : (t * p2) / (p1 + t * (671 * cosH + 6588 * sinH) / 1403)
+
+      const a = r * cosH
+      const b = r * sinH
+
+      // Step 6: Recover post-adaptation cone responses
       const Ra = (460 * p2 + 451 * a + 288 * b) / 1403
       const Ga = (460 * p2 - 891 * a - 261 * b) / 1403
       const Ba = (460 * p2 - 220 * a - 6300 * b) / 1403
 
-      // Step 6: Invert nonlinear adaptation
+      // Step 7: Invert nonlinear adaptation
       const rgbHpe: Vec3 = [
         inverseNonlinearAdaptation(Ra, Fl),
         inverseNonlinearAdaptation(Ga, Fl),
         inverseNonlinearAdaptation(Ba, Fl)
       ]
 
-      // Step 7: Convert back through HPE and CAT02
+      // Step 8: Convert back through HPE inverse, then to adapted sharpened cone space
       const rgc = multiplyMatrixVec(M_CAT02, multiplyMatrixVec(M_HPE_INV, rgbHpe))
 
-      // Step 8: Undo chromatic adaptation
+      // Step 9: Undo chromatic adaptation
       const whiteRgb = multiplyMatrixVec(M_CAT02, [whitePoint.X, whitePoint.Y, whitePoint.Z])
       const rgb: Vec3 = [
         rgc[0] / (D * whitePoint.Y / whiteRgb[0] + 1 - D),
@@ -355,7 +388,7 @@ export const inverse = (
         rgc[2] / (D * whitePoint.Y / whiteRgb[2] + 1 - D)
       ]
 
-      // Step 9: Convert back to XYZ
+      // Step 10: Convert back to XYZ
       const xyzVec = multiplyMatrixVec(M_CAT02_INV, rgb)
 
       return { X: xyzVec[0], Y: xyzVec[1], Z: xyzVec[2] }
