@@ -405,33 +405,12 @@ const inverseNonlinearAdaptation = (adapted: number, Fl: number): number => {
 // Eccentricity Factor
 // ============================================================================
 
-/** Compute the eccentricity factor et for a given hue angle */
-const eccentricityFactor = (h: number): number => {
-  const hp = h < ECCENTRICITY_HUE_ANGLES[0] ? h + 360 : h
-
-  // Find which segment we're in
-  const segmentIndex = pipe(
-    Arr.range(0, 3),
-    Arr.findLastIndex((i) => hp >= ECCENTRICITY_HUE_ANGLES[i])
-  )
-
-  // Default to segment 0 if not found
-  const i = segmentIndex._tag === "Some" ? segmentIndex.value : 0
-
-  const hi = ECCENTRICITY_HUE_ANGLES[i]
-  const ei = ECCENTRICITY_VALUES[i]
-  const Hi = ECCENTRICITY_H_VALUES[i]
-  const hiNext = ECCENTRICITY_HUE_ANGLES[i + 1]
-  const eiNext = ECCENTRICITY_VALUES[i + 1]
-  const HiNext = ECCENTRICITY_H_VALUES[i + 1]
-
-  const t = (hp - hi) / ei
-  const denominator = t + (hiNext - hp) / eiNext
-
-  return denominator === 0
-    ? ei
-    : (Hi + (100 * t) / denominator) / 100 * ((eiNext * ei) / (eiNext * (hp - hi) / (HiNext - Hi) + ei * (hiNext - hp) / (HiNext - Hi)))
-}
+/**
+ * Compute the eccentricity factor et for a given hue angle.
+ * From CIE 159:2004: et = (1/4)(cos(h·π/180 + 2) + 3.8)
+ */
+const eccentricityFactor = (h: number): number =>
+  0.25 * (Math.cos(h * DEG_TO_RAD + ECCENTRICITY_HUE_OFFSET) + 3.8)
 
 // ============================================================================
 // Surround Resolution
