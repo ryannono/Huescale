@@ -1,6 +1,6 @@
 {
   "name": "gray-hk",
-  "description": "H-K compensated gray palette (hue=257, chroma=0.025) from default-pattern",
+  "description": "Literal gray light palette (source of truth). 100-700 as visually approved; 800-1000 hand-tuned to ease into a real (non-pure) black instead of a uniform-step cliff. Dark mode is derived per-stop via CIECAM02 contrast compensation (source-bg #ffffff, target-bg #000000, Yb=15).",
   "stops": [
     {
       "position": 100,
@@ -8,15 +8,15 @@
     },
     {
       "position": 200,
-      "hex": "#ccd7e7"
+      "hex": "#c7d2e1"
     },
     {
       "position": 300,
-      "hex": "#adb8c7"
+      "hex": "#aab5c3"
     },
     {
       "position": 400,
-      "hex": "#8e99a8"
+      "hex": "#8e98a6"
     },
     {
       "position": 500,
@@ -24,7 +24,7 @@
     },
     {
       "position": 600,
-      "hex": "#56606e"
+      "hex": "#57616f"
     },
     {
       "position": 700,
@@ -32,15 +32,15 @@
     },
     {
       "position": 800,
-      "hex": "#252e3a"
+      "hex": "#242c39"
     },
     {
       "position": 900,
-      "hex": "#101722"
+      "hex": "#161e2b"
     },
     {
       "position": 1000,
-      "hex": "#01040d"
+      "hex": "#0a121e"
     }
   ]
 }
