@@ -1,16 +1,46 @@
 {
-  "name": "gray-source",
-  "description": "Gray palette extracted from source image",
+  "name": "gray-hk",
+  "description": "H-K compensated gray palette (hue=257, chroma=0.025) from default-pattern",
   "stops": [
-    { "position": 100, "hex": "#FFFFFF" },
-    { "position": 200, "hex": "#C2C6CB" },
-    { "position": 300, "hex": "#C0C2C5" },
-    { "position": 400, "hex": "#85898F" },
-    { "position": 500, "hex": "#696E75" },
-    { "position": 600, "hex": "#4E535B" },
-    { "position": 700, "hex": "#353B43" },
-    { "position": 800, "hex": "#1D232D" },
-    { "position": 900, "hex": "#080E17" },
-    { "position": 1000, "hex": "#000105" }
+    {
+      "position": 100,
+      "hex": "#e5f0ff"
+    },
+    {
+      "position": 200,
+      "hex": "#ccd7e7"
+    },
+    {
+      "position": 300,
+      "hex": "#adb8c7"
+    },
+    {
+      "position": 400,
+      "hex": "#8e99a8"
+    },
+    {
+      "position": 500,
+      "hex": "#727c8a"
+    },
+    {
+      "position": 600,
+      "hex": "#56606e"
+    },
+    {
+      "position": 700,
+      "hex": "#3e4754"
+    },
+    {
+      "position": 800,
+      "hex": "#252e3a"
+    },
+    {
+      "position": 900,
+      "hex": "#101722"
+    },
+    {
+      "position": 1000,
+      "hex": "#01040d"
+    }
   ]
 }

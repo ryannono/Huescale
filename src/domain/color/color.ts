@@ -479,8 +479,8 @@ const formatColorProps = <T extends object, K extends keyof T>(
 const fromCuloriOklch = (oklch: culori.Oklch): Effect.Effect<OKLCHColor, ColorError> =>
   isDefined(oklch.l) && isDefined(oklch.c)
     ? Effect.succeed({
-      l: oklch.l,
-      c: oklch.c,
+      l: clamp(oklch.l, 0, 1),
+      c: Math.max(0, oklch.c),
       h: oklch.h ?? 0, // Achromatic colors have undefined hue, default to 0
       alpha: oklch.alpha ?? 1
     })

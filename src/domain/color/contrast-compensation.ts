@@ -13,16 +13,9 @@
 
 import * as culori from "culori"
 import { Data, Effect } from "effect"
-import type { OKLCHColor } from "./color.schema.js"
+import { CIECAM02Error, D65_WHITE_POINT, forward, inverse, makeViewingConditions, type XYZ } from "./ciecam02.js"
 import { clampToGamut } from "./color.js"
-import {
-  CIECAM02Error,
-  D65_WHITE_POINT,
-  forward,
-  inverse,
-  makeViewingConditions,
-  type XYZ
-} from "./ciecam02.js"
+import type { OKLCHColor } from "./color.schema.js"
 
 // ============================================================================
 // Errors
@@ -44,6 +37,24 @@ export class ContrastCompensationError extends Data.TaggedError("ContrastCompens
  */
 const SCREEN_ADAPTING_LUMINANCE = 64
 
+/**
+ * Minimum effective background luminance (Yb) for screen viewing.
+ *
+ * CIECAM02 assumes complete visual adaptation to the background. On a real screen,
+ * you never fully adapt to near-black because:
+ * - Room ambient light reflects off the screen
+ * - Screen bezels and UI chrome provide additional luminance
+ * - Peripheral vision includes the room environment
+ * - LCD/OLED "black" still has measurable luminance
+ *
+ * Yb=25 represents the effective adaptation level for a dark-mode screen
+ * viewed in typical indoor conditions. This accounts for UI chrome, ambient
+ * reflections, and the overall visual environment contributing to adaptation.
+ * Tuned empirically: produces usable contrast across the full palette range
+ * including dark stops (900/1000) on near-black backgrounds.
+ */
+const MIN_EFFECTIVE_YB = 15
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -64,17 +75,19 @@ export const compensateForBackground = (
   sourceBg: OKLCHColor,
   targetBg: OKLCHColor
 ): Effect.Effect<OKLCHColor, ContrastCompensationError | CIECAM02Error> =>
-  Effect.gen(function* () {
+  Effect.gen(function*() {
     // Convert all colors to XYZ65 via culori
     const colorXyz = oklchToXyz65(color)
     const sourceBgXyz = oklchToXyz65(sourceBg)
     const targetBgXyz = oklchToXyz65(targetBg)
 
-    // Compute relative background luminance (Yb) for each background
+    // Compute relative background luminance (Yb) for each background.
     // Yb = Y_background / Y_white × 100 — the Y component of XYZ is already
-    // relative luminance scaled to 0-100 when using D65 white (Y=100)
-    const sourceYb = sourceBgXyz.Y
-    const targetYb = targetBgXyz.Y
+    // relative luminance scaled to 0-100 when using D65 white (Y=100).
+    // Clamp to MIN_EFFECTIVE_YB to prevent unrealistic adaptation predictions
+    // for very dark backgrounds on real screens.
+    const sourceYb = Math.max(MIN_EFFECTIVE_YB, sourceBgXyz.Y)
+    const targetYb = Math.max(MIN_EFFECTIVE_YB, targetBgXyz.Y)
 
     // Build viewing conditions for source and target backgrounds
     const sourceConditions = yield* makeViewingConditions(

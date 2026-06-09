@@ -224,7 +224,7 @@ export const forward = (
 ): Effect.Effect<AppearanceCorrelates, CIECAM02Error> =>
   Effect.try({
     try: () => {
-      const { Fl, Nbb, Ncb, z, Aw, D, surround } = conditions
+      const { Aw, D, Fl, Nbb, Ncb, surround, z } = conditions
 
       // Step 1: Chromatic adaptation (CAT02)
       const rgb = multiplyMatrixVec(M_CAT02, [xyz.X, xyz.Y, xyz.Z])
@@ -265,8 +265,7 @@ export const forward = (
       const Q = (4 / surround.c) * Math.pow(J / 100, 0.5) * (Aw + 4) * Math.pow(Fl, 0.25)
 
       // Step 10: Chroma
-      const t =
-        (50000 / 13) *
+      const t = (50000 / 13) *
         surround.Nc *
         Ncb *
         et *
@@ -299,8 +298,8 @@ export const inverse = (
 ): Effect.Effect<XYZ, CIECAM02Error> =>
   Effect.try({
     try: () => {
-      const { J, C, h } = correlates
-      const { Fl, Nbb, Ncb, z, Aw, D, surround, n } = conditions
+      const { C, J, h } = correlates
+      const { Aw, D, Fl, Nbb, Ncb, n, surround, z } = conditions
 
       // Step 1: Recover achromatic response A from lightness J
       const A = Aw * Math.pow(J / 100, 1 / (surround.c * z))
@@ -331,23 +330,6 @@ export const inverse = (
       //   Ba' = (460·p2 - 220·a - 6300·b) / 1403
       //   Ra' + Ga' + 21·Ba'/20 = (460·p2·(1+1+21/20) + a·(451-891-220·21/20) + b·(288-261-6300·21/20)) / 1403
       // Simplifying: Ra' + Ga' + 21·Ba'/20 = p2·(920 + 460·21/20)/1403 + ... which gets messy.
-      //
-      // Standard inverse approach: substitute Ra', Ga', Ba' in terms of p2, a, b
-      // into the sum Ra'+Ga'+21Ba'/20 to express it in terms of p2, a, b.
-      //   sum = (460p2 + 451a + 288b + 460p2 - 891a - 261b + (21/20)(460p2 - 220a - 6300b)) / 1403
-      //       = (920p2 - 440a + 27b + 483p2 - 231a - 6615b) / 1403
-      //       = (1403p2 - 671a - 6588b) / 1403
-      //       = p2 - (671a + 6588b) / 1403
-      // Hmm let me recompute carefully...
-      //   460+460 = 920 for p2
-      //   451-891 = -440 for a
-      //   288-261 = 27 for b
-      //   (21/20)*460 = 483 for p2
-      //   (21/20)*(-220) = -231 for a
-      //   (21/20)*(-6300) = -6615 for b
-      //   p2 coeff: 920+483 = 1403 → p2
-      //   a coeff: -440-231 = -671
-      //   b coeff: 27-6615 = -6588
       // So sum = p2 + (-671a - 6588b)/1403
 
       // Then: t = p1 * sqrt(a²+b²) / (p2 + (-671a - 6588b)/1403)
@@ -442,8 +424,7 @@ const inverseNonlinearAdaptation = (adapted: number, Fl: number): number => {
  * Compute the eccentricity factor et for a given hue angle.
  * From CIE 159:2004: et = (1/4)(cos(h·π/180 + 2) + 3.8)
  */
-const eccentricityFactor = (h: number): number =>
-  0.25 * (Math.cos(h * DEG_TO_RAD + ECCENTRICITY_HUE_OFFSET) + 3.8)
+const eccentricityFactor = (h: number): number => 0.25 * (Math.cos(h * DEG_TO_RAD + ECCENTRICITY_HUE_OFFSET) + 3.8)
 
 // ============================================================================
 // Surround Resolution
