@@ -1,192 +1,22 @@
 {
-  "727c8a": {
-    "100": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.9513391127544938,
-          0.02332409459425552,
-          256.77536262574677
-        ],
-        "hex": "#e5f0ff"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 100,
-          "formattedValue": "#e5f0ff"
-        }
-      }
-    },
-    "200": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.8601929784459658,
-          0.02361494073838737,
-          256.77536262574785
-        ],
-        "hex": "#c7d2e1"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 200,
-          "formattedValue": "#c7d2e1"
-        }
-      }
-    },
-    "300": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.768392560945598,
-          0.02387660979274255,
-          256.77536262574785
-        ],
-        "hex": "#aab5c3"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 300,
-          "formattedValue": "#aab5c3"
-        }
-      }
-    },
-    "400": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.6759378602533906,
-          0.024200568794945507,
-          256.77536262574785
-        ],
-        "hex": "#8e98a6"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 400,
-          "formattedValue": "#8e98a6"
-        }
-      }
-    },
-    "500": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.5828288763693436,
-          0.02458681774499625,
-          256.77536262574785
-        ],
-        "hex": "#727c8a"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 500,
-          "formattedValue": "#727c8a"
-        }
-      }
-    },
-    "600": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.4890656092934569,
-          0.025035356642894774,
-          256.77536262574785
-        ],
-        "hex": "#57616f"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 600,
-          "formattedValue": "#57616f"
-        }
-      }
-    },
-    "700": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.39464805902573047,
-          0.025546185488641075,
-          256.77536262574785
-        ],
-        "hex": "#3e4754"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 700,
-          "formattedValue": "#3e4754"
-        }
-      }
-    },
-    "800": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.29957622556616437,
-          0.026119304282235165,
-          256.77536262574785
-        ],
-        "hex": "#252e3b"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 800,
-          "formattedValue": "#252e3b"
-        }
-      }
-    },
-    "900": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.20385010891475863,
-          0.026754713023677032,
-          256.77536262574785
-        ],
-        "hex": "#0f1723"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 900,
-          "formattedValue": "#0f1723"
-        }
-      }
-    },
-    "1000": {
-      "$type": "color",
-      "$value": {
-        "colorSpace": "oklch",
-        "components": [
-          0.10746970907151322,
-          0.027452411712966685,
-          256.77536262574785
-        ],
-        "hex": "#01040d"
-      },
-      "$extensions": {
-        "huescale": {
-          "position": 1000,
-          "formattedValue": "#01040d"
-        }
-      }
-    },
-    "$type": "color",
-    "$extensions": {
-      "huescale": {
-        "inputColor": "#727c8a",
-        "anchorStop": 500,
-        "outputFormat": "hex"
-      }
-    }
-  }
+  "name": "gray",
+  "description": "Final gray palette. Light is the source of truth (patterns/gray-source.json); dark is derived per-stop via CIECAM02 contrast compensation.",
+  "derivation": {
+    "method": "ciecam02-contrast-compensation",
+    "sourceBg": "#ffffff",
+    "targetBg": "#000000",
+    "yb": 15
+  },
+  "stops": [
+    { "position": 100, "light": "#e5f0ff", "dark": "#deebfd" },
+    { "position": 200, "light": "#c7d2e1", "dark": "#b8c5d6" },
+    { "position": 300, "light": "#aab5c3", "dark": "#95a1b1" },
+    { "position": 400, "light": "#8e98a6", "dark": "#75808e" },
+    { "position": 500, "light": "#727c8a", "dark": "#57616f" },
+    { "position": 600, "light": "#57616f", "dark": "#3c4552" },
+    { "position": 700, "light": "#3e4754", "dark": "#252c37" },
+    { "position": 800, "light": "#242c39", "dark": "#0f151f" },
+    { "position": 900, "light": "#161e2b", "dark": "#050a14" },
+    { "position": 1000, "light": "#0a121e", "dark": "#01040a" }
+  ]
 }
