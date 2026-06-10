@@ -267,7 +267,11 @@ const deriveDark = (
         const lightOklch = yield* parseColorStringToOKLCH(stop.hex)
         const darkOklch = yield* compensateForBackground(lightOklch, sourceBg, targetBg)
         const darkHex = yield* oklchToHex(darkOklch)
-        return { position: stop.position, light: stop.hex, dark: normalizeHex(darkHex) }
+        return {
+          position: stop.position,
+          light: { oklch: lightOklch, hex: stop.hex },
+          dark: { oklch: darkOklch, hex: normalizeHex(darkHex) },
+        }
       }))
     return { name: light.name, stops }
   }).pipe(Effect.orDie)
