@@ -348,7 +348,7 @@ const main = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
   const loadPattern = makeFilePatternLoader(fs)
 
-  yield* Effect.log("Generating light ramps (orange reference → blue/green/red)...")
+  yield* Effect.log("Generating light ramps (orange supplies uniform L+C; hue per color from its .3)...")
   const reference = yield* parseColorStringToOKLCH(ORANGE_REFERENCE)
   const chromaticLight = yield* Effect.forEach(
     CHROMATIC_ANCHORS,
