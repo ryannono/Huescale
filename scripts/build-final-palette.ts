@@ -99,44 +99,12 @@ const ALPHA_RAMPS = {
 // Validation Oracle — the approved Figma swatches
 // ============================================================================
 
-/** Per-hue expected light/dark hexes, transcribed from the Figma palette tables. */
+/**
+ * Validation oracle: approved Figma swatches for hues still pinned to Figma.
+ * Only grey remains pinned — orange/blue/red moved when the appearance reference
+ * became blue.3, so every chromatic hue is now generated fresh (no Figma yet).
+ */
 const ORACLE: Readonly<Record<string, ReadonlyArray<{ position: number; light: string; dark: string }>>> = {
-  orange: [
-    { position: 100, light: "#fcdbcb", dark: "#f7d1bf" },
-    { position: 200, light: "#f8b695", dark: "#eca480" },
-    { position: 300, light: "#eb9265", dark: "#d77b4c" },
-    { position: 400, light: "#d77139", dark: "#bb571e" },
-    { position: 500, light: "#bd5200", dark: "#9a3700" },
-    { position: 600, light: "#9e3600", dark: "#771c00" },
-    { position: 700, light: "#782300", dark: "#520c00" },
-    { position: 800, light: "#531200", dark: "#300200" },
-    { position: 900, light: "#2f0300", dark: "#140000" },
-    { position: 1000, light: "#0b0100", dark: "#010000" },
-  ],
-  blue: [
-    { position: 100, light: "#d1e5ff", dark: "#c5ddfb" },
-    { position: 200, light: "#a3caff", dark: "#8dbaf7" },
-    { position: 300, light: "#7aaef9", dark: "#5d98eb" },
-    { position: 400, light: "#5591e8", dark: "#3476d3" },
-    { position: 500, light: "#3475d0", dark: "#0a58b4" },
-    { position: 600, light: "#1759b1", dark: "#003b8f" },
-    { position: 700, light: "#003f8d", dark: "#002369" },
-    { position: 800, light: "#002864", dark: "#001041" },
-    { position: 900, light: "#001338", dark: "#00031c" },
-    { position: 1000, light: "#00030d", dark: "#000002" },
-  ],
-  red: [
-    { position: 100, light: "#fed8d5", dark: "#f9ceca" },
-    { position: 200, light: "#fcb0ac", dark: "#f09e9a" },
-    { position: 300, light: "#ef8b87", dark: "#db7370" },
-    { position: 400, light: "#db6866", dark: "#bf4d4d" },
-    { position: 500, light: "#c14849", dark: "#9e2c31" },
-    { position: 600, light: "#a22b30", dark: "#7b0f1a" },
-    { position: 700, light: "#7e111c", dark: "#560009" },
-    { position: 800, light: "#58010c", dark: "#330002" },
-    { position: 900, light: "#310004", dark: "#150000" },
-    { position: 1000, light: "#0b0101", dark: "#020000" },
-  ],
   grey: [
     { position: 100, light: "#e5f0ff", dark: "#deebfd" },
     { position: 200, light: "#c7d2e1", dark: "#b8c5d6" },
