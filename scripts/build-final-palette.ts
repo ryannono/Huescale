@@ -240,7 +240,10 @@ const generateChromaticLight = (
     return { name: hue.name, stops }
   })
 
-/** Load grey's light ramp from the approved source-of-truth pattern. */
+/**
+ * Load grey's light ramp from the approved source-of-truth pattern, scaling its
+ * OKLCH chroma toward neutral to soften the cool/blue cast (lightness and hue kept).
+ */
 const loadGreyLight = (fs: FileSystem.FileSystem) =>
   Effect.gen(function*() {
     const content = yield* fs.readFileString(GREY_SOURCE_PATH)
@@ -249,7 +252,12 @@ const loadGreyLight = (fs: FileSystem.FileSystem) =>
       catch: (cause) => new Error(`Failed to parse ${GREY_SOURCE_PATH}: ${String(cause)}`),
     })
     const parsed = yield* ExamplePaletteRequest(json)
-    const stops = Arr.map(parsed.stops, (s) => ({ position: s.position, hex: normalizeHex(s.hex) }))
+    const stops = yield* Effect.forEach(parsed.stops, (s) =>
+      Effect.gen(function*() {
+        const oklch = yield* parseColorStringToOKLCH(s.hex)
+        const hex = yield* oklchToHex({ ...oklch, c: oklch.c * GREY_CHROMA_SCALE })
+        return { position: s.position, hex: normalizeHex(hex) }
+      }))
     return { name: "grey", stops }
   })
 
