@@ -48,18 +48,20 @@ const GREY_SOURCE_PATH = "patterns/gray-source.json"
 /** Stop where each anchor color sits in its ramp. */
 const ANCHOR_STOP = 500
 
-/** Reference hue whose appearance is applied to every other chromatic hue. */
-const ORANGE_REFERENCE = "#BD5200"
+/**
+ * Appearance reference: blue.3. Supplies the uniform lightness + chroma for every
+ * hue's 500 anchor — each hue keeps only its own hue angle (from its `.3` color),
+ * so all 500 anchors share L and C and differ only in H.
+ */
+const APPEARANCE_REFERENCE = "#2d72d2"
 
 /**
- * Chromatic hue anchors at stop 500. Each anchor supplies only its hue; the
- * orange reference supplies the lightness + chroma that gets stamped onto it.
- *
- * Every chromatic hue is anchored at its old BP `.3` color. (Orange is the
- * reference itself, anchored at #BD5200.)
+ * Chromatic hue anchors at stop 500. Each anchor supplies only its hue (taken from
+ * the hue's old BP `.3` color); the appearance reference (blue.3) supplies the
+ * shared lightness + chroma. The orange pattern still defines the ramp curve.
  */
 const CHROMATIC_ANCHORS = [
-  { name: "orange", anchor: ORANGE_REFERENCE },
+  { name: "orange", anchor: "#c87619" },
   { name: "blue", anchor: "#2d72d2" },
   { name: "green", anchor: "#238551" },
   { name: "red", anchor: "#cd4246" },
