@@ -45,6 +45,9 @@ const SOURCE_PATTERN_PATH = "patterns/default.json"
 /** Grey light ramp: approved source of truth (H-K derived, 800–1000 hand-tuned). */
 const GREY_SOURCE_PATH = "patterns/gray-source.json"
 
+/** Softens grey's cool/blue cast by scaling OKLCH chroma (1 = unchanged, lower = more neutral). */
+const GREY_CHROMA_SCALE = 0.6
+
 /** Stop where each anchor color sits in its ramp. */
 const ANCHOR_STOP = 500
 
