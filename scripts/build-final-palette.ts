@@ -322,6 +322,14 @@ const summarizeHue = (hue: FinalHue): string => {
 // Output
 // ============================================================================
 
+/** Build a DTCG OKLCH color value (components rounded) with an sRGB hex fallback. */
+const toDTCG = (value: PaletteValue) => {
+  const components = [round(value.oklch.l, 4), round(value.oklch.c, 4), round(value.oklch.h, 2)]
+  return value.oklch.alpha < 1
+    ? { colorSpace: "oklch", components, alpha: round(value.oklch.alpha, 4), hex: value.hex }
+    : { colorSpace: "oklch", components, hex: value.hex }
+}
+
 /** Shape the final palette into a serializable object with the formula recorded. */
 const buildOutput = (hues: ReadonlyArray<FinalHue>) => ({
   $description:
