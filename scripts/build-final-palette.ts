@@ -31,7 +31,7 @@ import { Array as Arr, Effect } from "effect"
 import { applyOpticalAppearance, oklchToHex, parseColorStringToOKLCH } from "../src/domain/color/color.js"
 import type { OKLCHColor } from "../src/domain/color/color.schema.js"
 import { compensateForBackground } from "../src/domain/color/contrast-compensation.js"
-import { STOP_POSITIONS } from "../src/domain/palette/palette.schema.js"
+import { ExamplePaletteRequest, STOP_POSITIONS } from "../src/domain/palette/palette.schema.js"
 import { makeFilePatternLoader } from "../src/io/patternLoader.js"
 import { generatePaletteWithPattern } from "../src/usecases/generatePalette.js"
 
