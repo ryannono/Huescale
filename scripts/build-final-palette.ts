@@ -272,16 +272,15 @@ const deriveDark = (
     return { name: light.name, stops }
   }).pipe(Effect.orDie)
 
-/** Build a fixed alpha ramp hue (no derivation — light/dark opacities are authored). */
+/** Build a fixed alpha ramp hue: one authored opacity scale, identical in both modes. */
 const buildAlphaHue = (name: "white" | "black"): Effect.Effect<FinalHue, never> =>
   Effect.gen(function*() {
     const ramp = ALPHA_RAMPS[name]
     const base = yield* parseColorStringToOKLCH(ramp.base)
-    const stops = Arr.zip(STOP_POSITIONS, Arr.zip(ramp.light, ramp.dark)).map(([position, [lightA, darkA]]) => ({
-      position,
-      light: { oklch: { ...base, alpha: lightA }, hex: formatAlphaHex(ramp.base, lightA) },
-      dark: { oklch: { ...base, alpha: darkA }, hex: formatAlphaHex(ramp.base, darkA) },
-    }))
+    const stops = Arr.zip(STOP_POSITIONS, ramp.opacity).map(([position, alpha]) => {
+      const value = { oklch: { ...base, alpha }, hex: formatAlphaHex(ramp.base, alpha) }
+      return { position, light: value, dark: value }
+    })
     return { name, stops }
   }).pipe(Effect.orDie)
 
