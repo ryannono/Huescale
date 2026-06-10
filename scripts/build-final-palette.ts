@@ -276,18 +276,18 @@ const deriveDark = (
     return { name: light.name, stops }
   }).pipe(Effect.orDie)
 
-/** Build a fixed alpha ramp hue (no derivation — light/dark are authored). */
-const buildAlphaHue = (
-  name: "white" | "black",
-): FinalHue => {
-  const ramp = ALPHA_RAMPS[name]
-  const stops = Arr.zip(STOP_POSITIONS, Arr.zip(ramp.light, ramp.dark)).map(([position, [lightA, darkA]]) => ({
-    position,
-    light: formatAlphaHex(ramp.base, lightA),
-    dark: formatAlphaHex(ramp.base, darkA),
-  }))
-  return { name, stops }
-}
+/** Build a fixed alpha ramp hue (no derivation — light/dark opacities are authored). */
+const buildAlphaHue = (name: "white" | "black"): Effect.Effect<FinalHue, never> =>
+  Effect.gen(function*() {
+    const ramp = ALPHA_RAMPS[name]
+    const base = yield* parseColorStringToOKLCH(ramp.base)
+    const stops = Arr.zip(STOP_POSITIONS, Arr.zip(ramp.light, ramp.dark)).map(([position, [lightA, darkA]]) => ({
+      position,
+      light: { oklch: { ...base, alpha: lightA }, hex: formatAlphaHex(ramp.base, lightA) },
+      dark: { oklch: { ...base, alpha: darkA }, hex: formatAlphaHex(ramp.base, darkA) },
+    }))
+    return { name, stops }
+  }).pipe(Effect.orDie)
 
 // ============================================================================
 // Validation
