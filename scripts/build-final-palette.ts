@@ -145,18 +145,6 @@ const ORACLE: Readonly<Record<string, ReadonlyArray<{ position: number; light: s
     { position: 900, light: "#310004", dark: "#150000" },
     { position: 1000, light: "#0b0101", dark: "#020000" },
   ],
-  grey: [
-    { position: 100, light: "#e5f0ff", dark: "#deebfd" },
-    { position: 200, light: "#c7d2e1", dark: "#b8c5d6" },
-    { position: 300, light: "#aab5c3", dark: "#95a1b1" },
-    { position: 400, light: "#8e98a6", dark: "#75808e" },
-    { position: 500, light: "#727c8a", dark: "#57616f" },
-    { position: 600, light: "#57616f", dark: "#3c4552" },
-    { position: 700, light: "#3e4754", dark: "#252c37" },
-    { position: 800, light: "#242c39", dark: "#0f151f" },
-    { position: 900, light: "#161e2b", dark: "#050a14" },
-    { position: 1000, light: "#0a121e", dark: "#01040a" },
-  ],
 }
 
 // ============================================================================
