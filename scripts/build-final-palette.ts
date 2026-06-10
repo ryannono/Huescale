@@ -85,17 +85,15 @@ const CHROMATIC_ANCHORS = [
 const DARK_SOURCE_BG = "#ffffff"
 const DARK_TARGET_BG = "#000000"
 
-/** Alpha ramp definitions for the two neutral overlay scales. */
+/** Alpha overlay scales, shared across light and dark (no dark override). */
 const ALPHA_RAMPS = {
   white: {
     base: "#ffffff",
-    light: [0.06, 0.12, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
-    dark: [0.07, 0.11, 0.16, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
+    opacity: [0.06, 0.12, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
   },
   black: {
     base: "#000105",
-    light: [0.025, 0.09, 0.12, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
-    dark: [0.03, 0.1, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
+    opacity: [0.025, 0.09, 0.12, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
   },
 } as const
 
