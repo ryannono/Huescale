@@ -28,18 +28,33 @@ palette moves with it.
 ## 2. Light chromatic ramps — optical-appearance transform
 
 For each hue, take orange's appearance (its L + C at each stop) and stamp it onto
-the hue's own **hue angle**, anchored at stop 500:
+the hue's own **hue angle**, anchored at stop 500. Every chromatic hue is anchored
+at its old BP `.3` color:
 
-| Hue    | 500 anchor (hue source) | Role      |
-| ------ | ----------------------- | --------- |
-| orange | `#BD5200`               | reference |
-| blue   | `#2D72D2`               | target    |
-| green  | `#008F37`               | target    |
-| red    | `#CD4246`               | target    |
+| Hue       | 500 anchor (old BP `.3`) | Role      |
+| --------- | ------------------------ | --------- |
+| orange    | `#BD5200`                | reference |
+| blue      | `#2d72d2`                | target    |
+| green     | `#238551`                | target    |
+| red       | `#cd4246`                | target    |
+| vermilion | `#d33d17`                | target    |
+| rose      | `#db2c6f`                | target    |
+| violet    | `#9d3f9d`                | target    |
+| indigo    | `#7961db`                | target    |
+| cerulean  | `#147eb3`                | target    |
+| turquoise | `#00a396`                | target    |
+| forest    | `#29a634`                | target    |
+| lime      | `#8eb125`                | target    |
+| gold      | `#d1980b`                | target    |
+| sepia     | `#946638`                | target    |
 
 Mechanically: `applyOpticalAppearance(orange, anchor)` → generate all 10 stops from
 the orange pattern → gamut-clamp to sRGB. (`src/domain/color/color.ts`,
 `src/usecases/generatePalette.ts`.)
+
+> Orange's own anchor is `#BD5200` (the reference), not its `.3` of `#c87619`.
+> orange / blue / red / grey are validated against the approved Figma swatches;
+> green and the extended hues are generated fresh from their `.3` anchors.
 
 ## 3. Light grey — Helmholtz-Kohlrausch compensation
 
