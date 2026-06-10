@@ -54,12 +54,25 @@ const ORANGE_REFERENCE = "#BD5200"
 /**
  * Chromatic hue anchors at stop 500. Each anchor supplies only its hue; the
  * orange reference supplies the lightness + chroma that gets stamped onto it.
+ *
+ * Every chromatic hue is anchored at its old BP `.3` color. (Orange is the
+ * reference itself, anchored at #BD5200.)
  */
 const CHROMATIC_ANCHORS = [
   { name: "orange", anchor: ORANGE_REFERENCE },
-  { name: "blue", anchor: "#2D72D2" },
-  { name: "green", anchor: "#008F37" },
-  { name: "red", anchor: "#CD4246" },
+  { name: "blue", anchor: "#2d72d2" },
+  { name: "green", anchor: "#238551" },
+  { name: "red", anchor: "#cd4246" },
+  { name: "vermilion", anchor: "#d33d17" },
+  { name: "rose", anchor: "#db2c6f" },
+  { name: "violet", anchor: "#9d3f9d" },
+  { name: "indigo", anchor: "#7961db" },
+  { name: "cerulean", anchor: "#147eb3" },
+  { name: "turquoise", anchor: "#00a396" },
+  { name: "forest", anchor: "#29a634" },
+  { name: "lime", anchor: "#8eb125" },
+  { name: "gold", anchor: "#d1980b" },
+  { name: "sepia", anchor: "#946638" },
 ] as const
 
 /** Dark-mode derivation: adapt light colors from a white bg to a black bg. */
