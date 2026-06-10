@@ -301,11 +301,11 @@ const validateHue = (hue: FinalHue): ReadonlyArray<string> => {
     const want = expected.find((e) => e.position === stop.position)
     if (want === undefined) return []
     const lines: Array<string> = []
-    if (normalizeHex(want.light) !== stop.light) {
-      lines.push(`  ✗ ${hue.name}.${stop.position} light: got ${stop.light}, want ${normalizeHex(want.light)}`)
+    if (normalizeHex(want.light) !== stop.light.hex) {
+      lines.push(`  ✗ ${hue.name}.${stop.position} light: got ${stop.light.hex}, want ${normalizeHex(want.light)}`)
     }
-    if (normalizeHex(want.dark) !== stop.dark) {
-      lines.push(`  ✗ ${hue.name}.${stop.position} dark:  got ${stop.dark}, want ${normalizeHex(want.dark)}`)
+    if (normalizeHex(want.dark) !== stop.dark.hex) {
+      lines.push(`  ✗ ${hue.name}.${stop.position} dark:  got ${stop.dark.hex}, want ${normalizeHex(want.dark)}`)
     }
     return lines
   })
