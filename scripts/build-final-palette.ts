@@ -343,6 +343,7 @@ const buildOutput = (hues: ReadonlyArray<FinalHue>) => ({
     grey: {
       method: "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
       source: GREY_SOURCE_PATH,
+      chromaScale: GREY_CHROMA_SCALE,
     },
     dark: {
       method: "ciecam02-contrast-compensation",
