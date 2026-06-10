@@ -200,7 +200,6 @@ const formatAlphaHex = (baseHex: string, alpha: number): string => {
   return alpha >= 1 ? culori.formatHex(withAlpha) : culori.formatHex8(withAlpha)
 }
 
-/** Round to a fixed number of decimal places. */
 const round = (value: number, places: number): number => {
   const factor = 10 ** places
   return Math.round(value * factor) / factor
