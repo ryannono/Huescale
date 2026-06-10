@@ -12,7 +12,8 @@ This writes [`palette.final.json`](./palette.final.json) (every hue × `light`/`
 and validates each generated value against the approved Figma swatches. Last run:
 **all chromatic + grey ramps reproduce Figma exactly** (100/100 stops).
 
-Scope: intents only to start — `orange`, `green`, `blue`, `red`, `grey`, plus the
+Hues: `orange`, `blue`, `green`, `red`, `vermilion`, `rose`, `violet`, `indigo`,
+`cerulean`, `turquoise`, `forest`, `lime`, `gold`, `sepia`, `grey`, plus the
 `white` / `black` alpha overlay ramps. Scale is `100` (lightest) → `1000` (darkest).
 
 ---
