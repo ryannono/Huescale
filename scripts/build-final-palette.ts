@@ -230,30 +230,14 @@ const generateChromaticLight = (
 const loadGreyLight = (fs: FileSystem.FileSystem) =>
   Effect.gen(function*() {
     const content = yield* fs.readFileString(GREY_SOURCE_PATH)
-    const json: unknown = JSON.parse(content)
-    const stops = parseSourceStops(json)
-    return { name: "grey", stops: Arr.map(stops, (s) => ({ position: s.position, hex: normalizeHex(s.hex) })) }
+    const json = yield* Effect.try({
+      try: (): unknown => JSON.parse(content),
+      catch: (cause) => new Error(`Failed to parse ${GREY_SOURCE_PATH}: ${String(cause)}`),
+    })
+    const parsed = yield* ExamplePaletteRequest(json)
+    const stops = Arr.map(parsed.stops, (s) => ({ position: s.position, hex: normalizeHex(s.hex) }))
+    return { name: "grey", stops }
   })
-
-/** Narrow the gray-source JSON to its stop array. */
-const parseSourceStops = (json: unknown): ReadonlyArray<{ position: number; hex: string }> => {
-  if (typeof json !== "object" || json === null || !("stops" in json)) {
-    throw new Error("gray-source.json missing stops array")
-  }
-  const stops = (json as { stops: unknown }).stops
-  if (!Array.isArray(stops)) throw new Error("gray-source.json stops is not an array")
-  return stops.map((s) => {
-    if (typeof s !== "object" || s === null || !("position" in s) || !("hex" in s)) {
-      throw new Error("gray-source.json stop missing position/hex")
-    }
-    const position = (s as { position: unknown }).position
-    const hex = (s as { hex: unknown }).hex
-    if (typeof position !== "number" || typeof hex !== "string") {
-      throw new Error("gray-source.json stop has invalid position/hex")
-    }
-    return { position, hex }
-  })
-}
 
 // ============================================================================
 // Dark Derivation
