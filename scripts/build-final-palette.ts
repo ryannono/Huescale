@@ -160,11 +160,17 @@ const ORACLE: Readonly<Record<string, ReadonlyArray<{ position: number; light: s
 // Types
 // ============================================================================
 
+/** A resolved color in one mode: OKLCH (the canonical value) plus its sRGB hex fallback. */
+interface PaletteValue {
+  readonly oklch: OKLCHColor
+  readonly hex: string
+}
+
 /** A single resolved palette stop in both modes. */
 interface FinalStop {
   readonly position: number
-  readonly light: string
-  readonly dark: string
+  readonly light: PaletteValue
+  readonly dark: PaletteValue
 }
 
 /** A named ramp of resolved stops. */
@@ -173,7 +179,7 @@ interface FinalHue {
   readonly stops: ReadonlyArray<FinalStop>
 }
 
-/** A light stop carrying just enough to derive its dark counterpart. */
+/** A light stop carrying its sRGB hex; OKLCH is derived from it for the token value and the dark mode. */
 interface LightStop {
   readonly position: number
   readonly hex: string
