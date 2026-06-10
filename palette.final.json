@@ -25,7 +25,8 @@
     },
     "grey": {
       "method": "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
-      "source": "patterns/gray-source.json"
+      "source": "patterns/gray-source.json",
+      "chromaScale": 0.6
     },
     "dark": {
       "method": "ciecam02-contrast-compensation",
@@ -2924,200 +2925,200 @@
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.9513,
-            0.0234,
-            256.1
+            0.9525,
+            0.0142,
+            254.61
           ],
-          "hex": "#e5f0ff"
+          "hex": "#e9f0f9"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.9358,
-            0.0283,
-            255.32
+            0.9373,
+            0.0174,
+            253.37
           ],
-          "hex": "#deebfd"
+          "hex": "#e2ebf6"
         }
       },
       "200": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.8599,
-            0.024,
-            256.11
+            0.8611,
+            0.0146,
+            254.62
           ],
-          "hex": "#c7d2e1"
+          "hex": "#cbd2db"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.8184,
-            0.0281,
-            255.42
+            0.8199,
+            0.0172,
+            253.52
           ],
-          "hex": "#b8c5d6"
+          "hex": "#bdc5cf"
         }
       },
       "300": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.7689,
-            0.0235,
-            254.43
+            0.77,
+            0.0138,
+            251.59
           ],
-          "hex": "#aab5c3"
+          "hex": "#aeb5bd"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.7056,
-            0.0265,
-            253.8
+            0.707,
+            0.0157,
+            250.61
           ],
-          "hex": "#95a1b1"
+          "hex": "#9aa2aa"
         }
       },
       "400": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.6762,
-            0.0237,
-            256.76
+            0.6773,
+            0.0137,
+            255.54
           ],
-          "hex": "#8e98a6"
+          "hex": "#9298a0"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.5952,
-            0.0256,
-            256.19
+            0.5965,
+            0.0148,
+            254.59
           ],
-          "hex": "#75808e"
+          "hex": "#798088"
         }
       },
       "500": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.5828,
-            0.0246,
-            256.78
+            0.5839,
+            0.0142,
+            255.55
           ],
-          "hex": "#727c8a"
+          "hex": "#767c84"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.4888,
-            0.0253,
-            256.28
+            0.4901,
+            0.0147,
+            254.75
           ],
-          "hex": "#57616f"
+          "hex": "#5b6169"
         }
       },
       "600": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.4892,
-            0.0257,
-            256.79
+            0.4902,
+            0.0148,
+            255.57
           ],
-          "hex": "#57616f"
+          "hex": "#5b6169"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.3876,
-            0.0251,
-            256.37
+            0.3887,
+            0.0145,
+            254.91
           ],
-          "hex": "#3c4552"
+          "hex": "#40454d"
         }
       },
       "700": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.395,
-            0.025,
-            257.52
+            0.3954,
+            0.0157,
+            255.6
           ],
-          "hex": "#3e4754"
+          "hex": "#41474f"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.292,
-            0.0229,
-            257.13
+            0.2925,
+            0.0144,
+            255.06
           ],
-          "hex": "#252c37"
+          "hex": "#272c33"
         }
       },
       "800": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.2913,
-            0.0264,
-            260.03
+            0.2916,
+            0.0163,
+            259.79
           ],
-          "hex": "#242c39"
+          "hex": "#272c34"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.1952,
-            0.0222,
-            259.69
+            0.1954,
+            0.0137,
+            259.34
           ],
-          "hex": "#0f151f"
+          "hex": "#11151b"
         }
       },
       "900": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.2337,
-            0.0279,
-            259.94
+            0.2336,
+            0.0172,
+            259.75
           ],
-          "hex": "#161e2b"
+          "hex": "#191e26"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.1458,
-            0.0223,
-            259.58
+            0.1457,
+            0.0137,
+            259.36
           ],
-          "hex": "#050a14"
+          "hex": "#070a10"
         }
       },
       "1000": {
         "light": {
           "colorSpace": "oklch",
           "components": [
-            0.1809,
-            0.0277,
-            258.29
+            0.1804,
+            0.0165,
+            256.84
           ],
-          "hex": "#0a121e"
+          "hex": "#0d1219"
         },
         "dark": {
           "colorSpace": "oklch",
           "components": [
-            0.104,
-            0.021,
-            257.86
+            0.1035,
+            0.0124,
+            256.43
           ],
-          "hex": "#01040a"
+          "hex": "#020407"
         }
       }
     },
