@@ -1,0 +1,379 @@
+{
+  "$description": "Blueprint BP7 intent palette (final). Light = orange appearance pattern transformed onto each hue's 500 anchor; grey from gray-source.json. Dark = CIECAM02 simultaneous-contrast compensation (#ffffff→#000000, Yb=15). white/black are fixed alpha ramps.",
+  "formula": {
+    "light": {
+      "method": "optical-appearance-transform",
+      "sourcePattern": "patterns/default.json",
+      "reference": "#BD5200",
+      "anchorStop": 500,
+      "hueAnchors": {
+        "orange": "#BD5200",
+        "blue": "#2D72D2",
+        "green": "#008F37",
+        "red": "#CD4246"
+      }
+    },
+    "grey": {
+      "method": "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
+      "source": "patterns/gray-source.json"
+    },
+    "dark": {
+      "method": "ciecam02-contrast-compensation",
+      "sourceBg": "#ffffff",
+      "targetBg": "#000000",
+      "yb": 15
+    },
+    "alphaRamps": {
+      "white": {
+        "base": "#ffffff",
+        "light": [
+          0.06,
+          0.12,
+          0.2,
+          0.3,
+          0.5,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1
+        ],
+        "dark": [
+          0.07,
+          0.11,
+          0.16,
+          0.3,
+          0.5,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1
+        ]
+      },
+      "black": {
+        "base": "#000105",
+        "light": [
+          0.025,
+          0.09,
+          0.12,
+          0.3,
+          0.5,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1
+        ],
+        "dark": [
+          0.03,
+          0.1,
+          0.2,
+          0.3,
+          0.5,
+          0.8,
+          0.85,
+          0.9,
+          0.95,
+          1
+        ]
+      }
+    }
+  },
+  "hues": {
+    "orange": {
+      "100": {
+        "light": "#fcdbcb",
+        "dark": "#f7d1bf"
+      },
+      "200": {
+        "light": "#f8b695",
+        "dark": "#eca480"
+      },
+      "300": {
+        "light": "#eb9265",
+        "dark": "#d77b4c"
+      },
+      "400": {
+        "light": "#d77139",
+        "dark": "#bb571e"
+      },
+      "500": {
+        "light": "#bd5200",
+        "dark": "#9a3700"
+      },
+      "600": {
+        "light": "#9e3600",
+        "dark": "#771c00"
+      },
+      "700": {
+        "light": "#782300",
+        "dark": "#520c00"
+      },
+      "800": {
+        "light": "#531200",
+        "dark": "#300200"
+      },
+      "900": {
+        "light": "#2f0300",
+        "dark": "#140000"
+      },
+      "1000": {
+        "light": "#0b0100",
+        "dark": "#010000"
+      }
+    },
+    "blue": {
+      "100": {
+        "light": "#d1e5ff",
+        "dark": "#c5ddfb"
+      },
+      "200": {
+        "light": "#a3caff",
+        "dark": "#8dbaf7"
+      },
+      "300": {
+        "light": "#7aaef9",
+        "dark": "#5d98eb"
+      },
+      "400": {
+        "light": "#5591e8",
+        "dark": "#3476d3"
+      },
+      "500": {
+        "light": "#3475d0",
+        "dark": "#0a58b4"
+      },
+      "600": {
+        "light": "#1759b1",
+        "dark": "#003b8f"
+      },
+      "700": {
+        "light": "#003f8d",
+        "dark": "#002369"
+      },
+      "800": {
+        "light": "#002864",
+        "dark": "#001041"
+      },
+      "900": {
+        "light": "#001338",
+        "dark": "#00031c"
+      },
+      "1000": {
+        "light": "#00030d",
+        "dark": "#000002"
+      }
+    },
+    "green": {
+      "100": {
+        "light": "#d0ebd3",
+        "dark": "#c4e4c8"
+      },
+      "200": {
+        "light": "#a0d8a6",
+        "dark": "#8aca93"
+      },
+      "300": {
+        "light": "#72c17e",
+        "dark": "#55ad66"
+      },
+      "400": {
+        "light": "#47a85b",
+        "dark": "#1f8f41"
+      },
+      "500": {
+        "light": "#178e3b",
+        "dark": "#007121"
+      },
+      "600": {
+        "light": "#007220",
+        "dark": "#005306"
+      },
+      "700": {
+        "light": "#005608",
+        "dark": "#003800"
+      },
+      "800": {
+        "light": "#003a00",
+        "dark": "#001f00"
+      },
+      "900": {
+        "light": "#001e00",
+        "dark": "#000a00"
+      },
+      "1000": {
+        "light": "#000500",
+        "dark": "#000100"
+      }
+    },
+    "red": {
+      "100": {
+        "light": "#fed8d5",
+        "dark": "#f9ceca"
+      },
+      "200": {
+        "light": "#fcb0ac",
+        "dark": "#f09e9a"
+      },
+      "300": {
+        "light": "#ef8b87",
+        "dark": "#db7370"
+      },
+      "400": {
+        "light": "#db6866",
+        "dark": "#bf4d4d"
+      },
+      "500": {
+        "light": "#c14849",
+        "dark": "#9e2c31"
+      },
+      "600": {
+        "light": "#a22b30",
+        "dark": "#7b0f1a"
+      },
+      "700": {
+        "light": "#7e111c",
+        "dark": "#560009"
+      },
+      "800": {
+        "light": "#58010c",
+        "dark": "#330002"
+      },
+      "900": {
+        "light": "#310004",
+        "dark": "#150000"
+      },
+      "1000": {
+        "light": "#0b0101",
+        "dark": "#020000"
+      }
+    },
+    "grey": {
+      "100": {
+        "light": "#e5f0ff",
+        "dark": "#deebfd"
+      },
+      "200": {
+        "light": "#c7d2e1",
+        "dark": "#b8c5d6"
+      },
+      "300": {
+        "light": "#aab5c3",
+        "dark": "#95a1b1"
+      },
+      "400": {
+        "light": "#8e98a6",
+        "dark": "#75808e"
+      },
+      "500": {
+        "light": "#727c8a",
+        "dark": "#57616f"
+      },
+      "600": {
+        "light": "#57616f",
+        "dark": "#3c4552"
+      },
+      "700": {
+        "light": "#3e4754",
+        "dark": "#252c37"
+      },
+      "800": {
+        "light": "#242c39",
+        "dark": "#0f151f"
+      },
+      "900": {
+        "light": "#161e2b",
+        "dark": "#050a14"
+      },
+      "1000": {
+        "light": "#0a121e",
+        "dark": "#01040a"
+      }
+    },
+    "white": {
+      "100": {
+        "light": "#ffffff0f",
+        "dark": "#ffffff12"
+      },
+      "200": {
+        "light": "#ffffff1f",
+        "dark": "#ffffff1c"
+      },
+      "300": {
+        "light": "#ffffff33",
+        "dark": "#ffffff29"
+      },
+      "400": {
+        "light": "#ffffff4d",
+        "dark": "#ffffff4d"
+      },
+      "500": {
+        "light": "#ffffff80",
+        "dark": "#ffffff80"
+      },
+      "600": {
+        "light": "#ffffffcc",
+        "dark": "#ffffffcc"
+      },
+      "700": {
+        "light": "#ffffffd9",
+        "dark": "#ffffffd9"
+      },
+      "800": {
+        "light": "#ffffffe6",
+        "dark": "#ffffffe6"
+      },
+      "900": {
+        "light": "#fffffff2",
+        "dark": "#fffffff2"
+      },
+      "1000": {
+        "light": "#ffffff",
+        "dark": "#ffffff"
+      }
+    },
+    "black": {
+      "100": {
+        "light": "#00010506",
+        "dark": "#00010508"
+      },
+      "200": {
+        "light": "#00010517",
+        "dark": "#0001051a"
+      },
+      "300": {
+        "light": "#0001051f",
+        "dark": "#00010533"
+      },
+      "400": {
+        "light": "#0001054d",
+        "dark": "#0001054d"
+      },
+      "500": {
+        "light": "#00010580",
+        "dark": "#00010580"
+      },
+      "600": {
+        "light": "#000105cc",
+        "dark": "#000105cc"
+      },
+      "700": {
+        "light": "#000105d9",
+        "dark": "#000105d9"
+      },
+      "800": {
+        "light": "#000105e6",
+        "dark": "#000105e6"
+      },
+      "900": {
+        "light": "#000105f2",
+        "dark": "#000105f2"
+      },
+      "1000": {
+        "light": "#000105",
+        "dark": "#000105"
+      }
+    }
+  }
+}
