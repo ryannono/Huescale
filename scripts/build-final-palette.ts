@@ -5,9 +5,9 @@
  * pipeline so the recipe is never lost. Starting from a single source pattern
  * (orange), it produces every intent ramp in both light and dark modes:
  *
- *   1. LIGHT (chromatic) — take orange's optical appearance (its per-stop OKLCH
- *      lightness/chroma progression) and apply it to each hue's 500 anchor.
- *      Orange is the reference; blue/green/red are targets.
+ *   1. LIGHT (chromatic) — orange supplies a uniform lightness + chroma (its 500
+ *      anchor is #BD5200); each hue keeps only its own hue angle, taken from its
+ *      old BP `.3` color, and the orange pattern expands it across all stops.
  *   2. LIGHT (grey) — loaded from patterns/gray-source.json, the approved source
  *      of truth. It was originally derived via Helmholtz-Kohlrausch lightness
  *      compensation (hue 257, chroma 0.025) off the orange reference, with the
