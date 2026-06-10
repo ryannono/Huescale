@@ -357,7 +357,7 @@ const buildOutput = (hues: ReadonlyArray<FinalHue>) => ({
   hues: Object.fromEntries(
     hues.map((hue) => [
       hue.name,
-      Object.fromEntries(hue.stops.map((stop) => [stop.position, { light: stop.light, dark: stop.dark }])),
+      Object.fromEntries(hue.stops.map((stop) => [stop.position, { light: toDTCG(stop.light), dark: toDTCG(stop.dark) }])),
     ]),
   ),
 })
@@ -392,7 +392,7 @@ const main = Effect.gen(function*() {
     { concurrency: "unbounded" },
   )
 
-  const alphaHues: ReadonlyArray<FinalHue> = [buildAlphaHue("white"), buildAlphaHue("black")]
+  const alphaHues = yield* Effect.forEach(["white", "black"] as const, buildAlphaHue)
   const allHues = [...chromaticHues, ...alphaHues]
 
   const output = buildOutput(allHues)
