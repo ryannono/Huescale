@@ -177,7 +177,8 @@ const round = (value: number, places: number): number => {
 
 /**
  * Generate a chromatic hue's light ramp: stamp the orange reference's optical
- * appearance onto the hue's anchor, then expand to all stops via the pattern.
+ * appearance onto the hue, match orange's rendered luminance, then expand the
+ * corrected anchor to all stops via the pattern.
  */
 const generateChromaticLight = (
   hue: { readonly name: string; readonly anchor: string },
@@ -205,8 +206,9 @@ const generateChromaticLight = (
   })
 
 /**
- * Load grey's light ramp from the approved source-of-truth pattern, scaling its
- * OKLCH chroma toward neutral to soften the cool/blue cast (lightness and hue kept).
+ * Load grey's light ramp from the approved source-of-truth pattern, scale its
+ * chroma toward neutral, and shift the whole lightness curve so stop 500 matches
+ * the orange reference's rendered luminance.
  */
 const loadGreyLight = (fs: FileSystem.FileSystem, reference: OKLCHColor) =>
   Effect.gen(function*() {
