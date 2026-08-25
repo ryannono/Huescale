@@ -3,8 +3,14 @@
  */
 
 import { describe, expect, it } from "@effect/vitest"
+import * as culori from "culori"
 import { Effect } from "effect"
-import { applyOpticalAppearance, isTransformationViable } from "../../../../src/domain/color/color.js"
+import {
+  applyOpticalAppearance,
+  isTransformationViable,
+  matchRelativeLuminance,
+  oklchToHex
+} from "../../../../src/domain/color/color.js"
 import { OKLCHColor } from "../../../../src/domain/color/color.schema.js"
 
 describe("Color Transformation", () => {
@@ -226,6 +232,32 @@ describe("Color Transformation", () => {
         const result = yield* isTransformationViable(reference, target)
 
         expect(result).toBe(true)
+      }))
+  })
+
+  describe("matchRelativeLuminance", () => {
+    it.effect("should match rendered luminance while retaining the target hue", () =>
+      Effect.gen(function*() {
+        const reference = yield* OKLCHColor({ l: 0.5673, c: 0.1563, h: 47.24 })
+        const target = yield* OKLCHColor({ l: 0.5673, c: 0.1563, h: 152.83 })
+
+        const matched = yield* matchRelativeLuminance(reference, target)
+        const referenceHex = yield* oklchToHex(reference)
+        const matchedHex = yield* oklchToHex(matched)
+
+        expect(culori.wcagLuminance(matchedHex)).toBeCloseTo(culori.wcagLuminance(referenceHex), 2)
+        expect(Math.abs(matched.h - target.h)).toBeLessThan(5)
+      }))
+
+    it.effect("should preserve a target that already matches the reference luminance", () =>
+      Effect.gen(function*() {
+        const reference = yield* OKLCHColor({ l: 0.5673, c: 0.1563, h: 47.24 })
+
+        const matched = yield* matchRelativeLuminance(reference, reference)
+        const referenceHex = yield* oklchToHex(reference)
+        const matchedHex = yield* oklchToHex(matched)
+
+        expect(matchedHex).toBe(referenceHex)
       }))
   })
 })
