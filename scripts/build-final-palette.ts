@@ -5,13 +5,14 @@
  * pipeline so the recipe is never lost. Starting from a single source pattern
  * (orange), it produces every intent ramp in both light and dark modes:
  *
- *   1. LIGHT (chromatic) — orange supplies a uniform lightness + chroma (its 500
- *      anchor is #BD5200); each hue keeps only its own hue angle, taken from its
- *      old BP `.3` color, and the orange pattern expands it across all stops.
+ *   1. LIGHT (chromatic) — orange supplies the chroma and rendered luminance for
+ *      stop 500; each family keeps the hue angle from its old BP `.3` color, and
+ *      the orange pattern expands the corrected anchor across all stops.
  *   2. LIGHT (grey) — loaded from patterns/gray-source.json, the approved source
  *      of truth. It was originally derived via Helmholtz-Kohlrausch lightness
  *      compensation (hue 257, chroma 0.025) off the orange reference, with the
- *      800–1000 stops hand-tuned afterward.
+ *      800–1000 stops hand-tuned afterward. One lightness adjustment aligns its
+ *      500 with the chromatic families without changing the source curve.
  *   3. DARK (all hues) — derive each light stop via CIECAM02 simultaneous-contrast
  *      compensation, adapting from a white background (#ffffff) to black (#000000)
  *      with an effective background luminance Yb=15.
@@ -60,16 +61,17 @@ const ANCHOR_STOP = 500
 
 /**
  * Appearance reference: orange, anchored at the source pattern's 500 (#BD5200).
- * Supplies the uniform lightness + chroma for every hue's 500 anchor — each hue
- * keeps only its own hue angle (from its `.3` color), so all 500 anchors share
- * L and C and differ only in H.
+ * Supplies the initial lightness and chroma for every hue's 500 anchor. After hue
+ * transfer and gamut mapping, the generator adjusts lightness until the rendered
+ * sRGB color matches this reference's relative luminance.
  */
 const ORANGE_REFERENCE = "#BD5200"
 
 /**
  * Chromatic hue anchors at stop 500. Each anchor supplies only its hue (taken from
- * the hue's old BP `.3` color); the orange reference supplies the shared lightness
- * + chroma, and the orange pattern defines the ramp curve.
+ * the hue's old BP `.3` color); the orange reference supplies the initial lightness
+ * and chroma plus the rendered-luminance target, and the orange pattern defines
+ * the ramp curve.
  */
 const CHROMATIC_ANCHORS = [
   { name: "orange", anchor: ORANGE_REFERENCE },
