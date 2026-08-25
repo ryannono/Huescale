@@ -335,19 +335,21 @@ const toDTCG = (value: PaletteValue) => {
 /** Shape the final palette into a serializable object with the formula recorded. */
 const buildOutput = (hues: ReadonlyArray<FinalHue>) => ({
   $description:
-    "Blueprint BP7 intent palette (final). Light = orange appearance pattern transformed onto each hue's 500 anchor; grey from gray-source.json. Dark = CIECAM02 simultaneous-contrast compensation (#ffffff→#000000, Yb=15). white/black are fixed alpha ramps.",
+    "Blueprint BP7 intent palette (final). Light = orange pattern transformed onto each hue and luminance-aligned at 500; grey = adjusted gray-source.json. Dark = CIECAM02 simultaneous-contrast compensation (#ffffff→#000000, Yb=15). white/black are fixed alpha ramps.",
   formula: {
     light: {
       method: "optical-appearance-transform",
       sourcePattern: SOURCE_PATTERN_PATH,
       reference: ORANGE_REFERENCE,
       anchorStop: ANCHOR_STOP,
+      anchorAlignment: "match rendered sRGB relative luminance to the orange reference",
       hueAnchors: Object.fromEntries(CHROMATIC_ANCHORS.map((h) => [h.name, h.anchor]))
     },
     grey: {
       method: "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
       source: GREY_SOURCE_PATH,
-      chromaScale: GREY_CHROMA_SCALE
+      chromaScale: GREY_CHROMA_SCALE,
+      anchorAlignment: "shift the full lightness curve until stop 500 matches the orange reference luminance"
     },
     dark: {
       method: "ciecam02-contrast-compensation",
@@ -377,7 +379,7 @@ const main = Effect.gen(function*() {
   const fs = yield* FileSystem.FileSystem
   const loadPattern = makeFilePatternLoader(fs)
 
-  yield* Effect.log("Generating light ramps (orange supplies uniform L+C; hue per color from its .3)...")
+  yield* Effect.log("Generating light ramps (orange supplies chroma, luminance, and the ramp pattern)...")
   const reference = yield* parseColorStringToOKLCH(ORANGE_REFERENCE)
   const chromaticLight = yield* Effect.forEach(
     CHROMATIC_ANCHORS,
