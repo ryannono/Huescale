@@ -52,6 +52,12 @@ const MAX_CHROMA_LOSS_RATIO = 0.5
 /** Default mode string when culori doesn't provide one */
 const UNKNOWN_COLOR_MODE = "unknown"
 
+/** Number of bisection steps used to match display-relative luminance. */
+const RELATIVE_LUMINANCE_SEARCH_ITERATIONS = 24
+
+/** Maps an OKLCH color into the sRGB gamut. */
+const mapToSrgbGamut = culori.toGamut("rgb", "oklch")
+
 // ============================================================================
 // Public API - Parsing
 // ============================================================================
@@ -180,8 +186,7 @@ export const clampToGamut = (
         // - dest: "rgb" (target sRGB gamut)
         // - mode: "oklch" (perceptual color space for mapping)
         // This adjusts both lightness and chroma to minimize deltaE
-        const gamutMapper = culori.toGamut("rgb", "oklch")
-        const mapped = gamutMapper(toCuloriOklch(color))
+        const mapped = mapToSrgbGamut(toCuloriOklch(color))
         return culori.oklch(mapped)
       },
       catch: (error) => colorError("Could not clamp OKLCH color to gamut", error)
@@ -309,6 +314,29 @@ export const applyOpticalAppearance = (
     })
   )
 
+/**
+ * Match a target color's rendered luminance to a reference color.
+ *
+ * The target keeps its chroma and hue before gamut mapping. The search adjusts
+ * OKLCH lightness until both colors have the same WCAG relative luminance after
+ * mapping into sRGB.
+ */
+export const matchRelativeLuminance = (
+  reference: OKLCHColor,
+  target: OKLCHColor
+): Effect.Effect<OKLCHColor, ColorError> =>
+  pipe(
+    Effect.try({
+      try: () => findClosestRelativeLuminanceMatch(reference, target),
+      catch: (error) => colorError("Could not match relative luminance", error)
+    }),
+    Effect.filterOrFail(
+      (matched): matched is culori.Oklch => matched !== undefined,
+      () => colorError("Culori could not convert the luminance-matched color to OKLCH")
+    ),
+    Effect.flatMap(fromCuloriOklch)
+  )
+
 /** Check if lightness is within viable range for transformation */
 const hasViableLightness = (color: OKLCHColor): boolean =>
   color.l >= MIN_VIABLE_LIGHTNESS && color.l <= MAX_VIABLE_LIGHTNESS
@@ -365,6 +393,49 @@ export const isTransformationViable = (
 // ============================================================================
 // Helpers
 // ============================================================================
+
+interface RelativeLuminanceSearch {
+  readonly lowerLightness: number
+  readonly upperLightness: number
+  readonly closestColor: culori.Color
+  readonly closestDifference: number
+}
+
+/** Find the displayable target color closest to the reference luminance. */
+const findClosestRelativeLuminanceMatch = (
+  reference: OKLCHColor,
+  target: OKLCHColor
+): culori.Oklch | undefined => {
+  const referenceColor = mapToSrgbGamut(toCuloriOklch(reference))
+  const referenceLuminance = culori.wcagLuminance(referenceColor)
+  const initialColor = mapToSrgbGamut(toCuloriOklch(target))
+  const initialSearch: RelativeLuminanceSearch = {
+    lowerLightness: 0,
+    upperLightness: 1,
+    closestColor: initialColor,
+    closestDifference: Math.abs(culori.wcagLuminance(initialColor) - referenceLuminance)
+  }
+
+  const match = Array.from({ length: RELATIVE_LUMINANCE_SEARCH_ITERATIONS }).reduce<RelativeLuminanceSearch>(
+    (search) => {
+      const lightness = (search.lowerLightness + search.upperLightness) / 2
+      const candidate = mapToSrgbGamut(toCuloriOklch({ ...target, l: lightness }))
+      const candidateLuminance = culori.wcagLuminance(candidate)
+      const difference = Math.abs(candidateLuminance - referenceLuminance)
+      const isCloser = difference < search.closestDifference
+
+      return {
+        lowerLightness: candidateLuminance < referenceLuminance ? lightness : search.lowerLightness,
+        upperLightness: candidateLuminance < referenceLuminance ? search.upperLightness : lightness,
+        closestColor: isCloser ? candidate : search.closestColor,
+        closestDifference: isCloser ? difference : search.closestDifference
+      }
+    },
+    initialSearch
+  )
+
+  return culori.oklch(match.closestColor)
+}
 
 /** Wrap culori parse in Option */
 const parseCuloriColor = (colorString: string): Option.Option<culori.Color> =>
