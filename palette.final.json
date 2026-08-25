@@ -1,11 +1,12 @@
 {
-  "$description": "Blueprint BP7 intent palette (final). Light = orange appearance pattern transformed onto each hue's 500 anchor; grey from gray-source.json. Dark = CIECAM02 simultaneous-contrast compensation (#ffffff→#000000, Yb=15). white/black are fixed alpha ramps.",
+  "$description": "Blueprint BP7 intent palette (final). Light = orange pattern transformed onto each hue and luminance-aligned at 500; grey = adjusted gray-source.json. Dark = CIECAM02 simultaneous-contrast compensation (#ffffff→#000000, Yb=15). white/black are fixed alpha ramps.",
   "formula": {
     "light": {
       "method": "optical-appearance-transform",
       "sourcePattern": "patterns/default.json",
       "reference": "#BD5200",
       "anchorStop": 500,
+      "anchorAlignment": "match rendered sRGB relative luminance to the orange reference",
       "hueAnchors": {
         "orange": "#BD5200",
         "blue": "#2d72d2",
@@ -26,7 +27,8 @@
     "grey": {
       "method": "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
       "source": "patterns/gray-source.json",
-      "chromaScale": 0.6
+      "chromaScale": 0.6,
+      "anchorAlignment": "shift the full lightness curve until stop 500 matches the orange reference luminance"
     },
     "dark": {
       "method": "ciecam02-contrast-compensation",
