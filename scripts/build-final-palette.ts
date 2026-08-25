@@ -28,7 +28,14 @@ import { FileSystem } from "@effect/platform"
 import { NodeContext, NodeRuntime } from "@effect/platform-node"
 import * as culori from "culori"
 import { Array as Arr, Effect } from "effect"
-import { applyOpticalAppearance, oklchToHex, parseColorStringToOKLCH } from "../src/domain/color/color.js"
+import {
+  applyOpticalAppearance,
+  clamp,
+  clampToGamut,
+  matchRelativeLuminance,
+  oklchToHex,
+  parseColorStringToOKLCH,
+} from "../src/domain/color/color.js"
 import type { OKLCHColor } from "../src/domain/color/color.schema.js"
 import { compensateForBackground } from "../src/domain/color/contrast-compensation.js"
 import { ExamplePaletteRequest, STOP_POSITIONS } from "../src/domain/palette/palette.schema.js"
@@ -211,7 +218,8 @@ const generateChromaticLight = (
     const pattern = yield* loadPattern(SOURCE_PATTERN_PATH)
     const target = yield* parseColorStringToOKLCH(hue.anchor)
     const stamped = yield* applyOpticalAppearance(reference, target)
-    const stampedHex = yield* oklchToHex(stamped)
+    const luminanceMatched = yield* matchRelativeLuminance(reference, stamped)
+    const stampedHex = yield* oklchToHex(luminanceMatched)
 
     const result = yield* generatePaletteWithPattern(
       { inputColor: stampedHex, anchorStop: ANCHOR_STOP, outputFormat: "hex", paletteName: hue.name },
@@ -230,7 +238,7 @@ const generateChromaticLight = (
  * Load grey's light ramp from the approved source-of-truth pattern, scaling its
  * OKLCH chroma toward neutral to soften the cool/blue cast (lightness and hue kept).
  */
-const loadGreyLight = (fs: FileSystem.FileSystem) =>
+const loadGreyLight = (fs: FileSystem.FileSystem, reference: OKLCHColor) =>
   Effect.gen(function*() {
     const content = yield* fs.readFileString(GREY_SOURCE_PATH)
     const json = yield* Effect.try({
@@ -238,12 +246,29 @@ const loadGreyLight = (fs: FileSystem.FileSystem) =>
       catch: (cause) => new Error(`Failed to parse ${GREY_SOURCE_PATH}: ${String(cause)}`),
     })
     const parsed = yield* ExamplePaletteRequest(json)
-    const stops = yield* Effect.forEach(parsed.stops, (s) =>
+    const scaledStops = yield* Effect.forEach(parsed.stops, (stop) =>
       Effect.gen(function*() {
-        const oklch = yield* parseColorStringToOKLCH(s.hex)
-        const hex = yield* oklchToHex({ ...oklch, c: oklch.c * GREY_CHROMA_SCALE })
-        return { position: s.position, hex: normalizeHex(hex) }
+        const color = yield* parseColorStringToOKLCH(stop.hex)
+        return { position: stop.position, color: { ...color, c: color.c * GREY_CHROMA_SCALE } }
       }))
+
+    const referenceStop = scaledStops.find((stop) => stop.position === ANCHOR_STOP)
+    if (referenceStop === undefined) {
+      return yield* Effect.fail(new Error(`Grey source is missing stop ${ANCHOR_STOP}`))
+    }
+
+    const luminanceMatched = yield* matchRelativeLuminance(reference, referenceStop.color)
+    const lightnessAdjustment = luminanceMatched.l - referenceStop.color.l
+    const stops = yield* Effect.forEach(scaledStops, (stop) =>
+      Effect.gen(function*() {
+        const adjusted = yield* clampToGamut({
+          ...stop.color,
+          l: clamp(stop.color.l + lightnessAdjustment, 0, 1),
+        })
+        const hex = yield* oklchToHex(adjusted)
+        return { position: stop.position, hex: normalizeHex(hex) }
+      }))
+
     return { name: "grey", stops }
   })
 
@@ -377,7 +402,7 @@ const main = Effect.gen(function*() {
   )
 
   yield* Effect.log("Loading grey light ramp (source of truth)...")
-  const greyLight = yield* loadGreyLight(fs)
+  const greyLight = yield* loadGreyLight(fs, reference)
 
   yield* Effect.log("Deriving dark ramps (CIECAM02 contrast compensation)...")
   const sourceBg = yield* parseColorStringToOKLCH(DARK_SOURCE_BG)
