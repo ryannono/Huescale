@@ -34,7 +34,7 @@ import {
   clampToGamut,
   matchRelativeLuminance,
   oklchToHex,
-  parseColorStringToOKLCH,
+  parseColorStringToOKLCH
 } from "../src/domain/color/color.js"
 import type { OKLCHColor } from "../src/domain/color/color.schema.js"
 import { compensateForBackground } from "../src/domain/color/contrast-compensation.js"
@@ -85,7 +85,7 @@ const CHROMATIC_ANCHORS = [
   { name: "forest", anchor: "#29a634" },
   { name: "lime", anchor: "#8eb125" },
   { name: "gold", anchor: "#d1980b" },
-  { name: "sepia", anchor: "#946638" },
+  { name: "sepia", anchor: "#946638" }
 ] as const
 
 /** Dark-mode derivation: adapt light colors from a white bg to a black bg. */
@@ -96,12 +96,12 @@ const DARK_TARGET_BG = "#000000"
 const ALPHA_RAMPS = {
   white: {
     base: "#ffffff",
-    opacity: [0.06, 0.12, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
+    opacity: [0.06, 0.12, 0.2, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]
   },
   black: {
     base: "#000105",
-    opacity: [0.025, 0.09, 0.12, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1],
-  },
+    opacity: [0.025, 0.09, 0.12, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]
+  }
 } as const
 
 // ============================================================================
@@ -117,7 +117,7 @@ const MINIMUM_TEXT_CONTRAST = 4.5
 /** The lightest solid intent surface used in each mode. */
 const FOREGROUND_STOPS = [
   { mode: "light", position: 500, getHex: (stop: FinalStop) => stop.light.hex },
-  { mode: "dark", position: 400, getHex: (stop: FinalStop) => stop.dark.hex },
+  { mode: "dark", position: 400, getHex: (stop: FinalStop) => stop.dark.hex }
 ] as const
 
 // ============================================================================
@@ -180,7 +180,7 @@ const round = (value: number, places: number): number => {
 const generateChromaticLight = (
   hue: { readonly name: string; readonly anchor: string },
   reference: OKLCHColor,
-  loadPattern: ReturnType<typeof makeFilePatternLoader>,
+  loadPattern: ReturnType<typeof makeFilePatternLoader>
 ) =>
   Effect.gen(function*() {
     const pattern = yield* loadPattern(SOURCE_PATTERN_PATH)
@@ -191,12 +191,12 @@ const generateChromaticLight = (
 
     const result = yield* generatePaletteWithPattern(
       { inputColor: stampedHex, anchorStop: ANCHOR_STOP, outputFormat: "hex", paletteName: hue.name },
-      pattern,
+      pattern
     )
 
     const stops: ReadonlyArray<LightStop> = Arr.map(result.stops, (stop) => ({
       position: stop.position,
-      hex: normalizeHex(stop.value),
+      hex: normalizeHex(stop.value)
     }))
 
     return { name: hue.name, stops }
@@ -211,7 +211,7 @@ const loadGreyLight = (fs: FileSystem.FileSystem, reference: OKLCHColor) =>
     const content = yield* fs.readFileString(GREY_SOURCE_PATH)
     const json = yield* Effect.try({
       try: (): unknown => JSON.parse(content),
-      catch: (cause) => new Error(`Failed to parse ${GREY_SOURCE_PATH}: ${String(cause)}`),
+      catch: (cause) => new Error(`Failed to parse ${GREY_SOURCE_PATH}: ${String(cause)}`)
     })
     const parsed = yield* ExamplePaletteRequest(json)
     const scaledStops = yield* Effect.forEach(parsed.stops, (stop) =>
@@ -231,7 +231,7 @@ const loadGreyLight = (fs: FileSystem.FileSystem, reference: OKLCHColor) =>
       Effect.gen(function*() {
         const adjusted = yield* clampToGamut({
           ...stop.color,
-          l: clamp(stop.color.l + lightnessAdjustment, 0, 1),
+          l: clamp(stop.color.l + lightnessAdjustment, 0, 1)
         })
         const hex = yield* oklchToHex(adjusted)
         return { position: stop.position, hex: normalizeHex(hex) }
@@ -248,7 +248,7 @@ const loadGreyLight = (fs: FileSystem.FileSystem, reference: OKLCHColor) =>
 const deriveDark = (
   light: { readonly name: string; readonly stops: ReadonlyArray<LightStop> },
   sourceBg: OKLCHColor,
-  targetBg: OKLCHColor,
+  targetBg: OKLCHColor
 ): Effect.Effect<FinalHue, never> =>
   Effect.gen(function*() {
     const stops = yield* Effect.forEach(light.stops, (stop) =>
@@ -259,7 +259,7 @@ const deriveDark = (
         return {
           position: stop.position,
           light: { oklch: lightOklch, hex: stop.hex },
-          dark: { oklch: darkOklch, hex: normalizeHex(darkHex) },
+          dark: { oklch: darkOklch, hex: normalizeHex(darkHex) }
         }
       }))
     return { name: light.name, stops }
@@ -292,7 +292,7 @@ interface ContrastResult {
 /** Measure white foreground contrast at each mode's lightest solid surface stop. */
 const measureForegroundContrast = (hues: ReadonlyArray<FinalHue>): ReadonlyArray<ContrastResult> =>
   hues.flatMap((hue) =>
-    FOREGROUND_STOPS.map(({ mode, position, getHex }) => {
+    FOREGROUND_STOPS.map(({ getHex, mode, position }) => {
       const stop = hue.stops.find((candidate) => candidate.position === position)
       if (stop === undefined) throw new Error(`${hue.name} is missing stop ${position}`)
       const hex = getHex(stop)
@@ -308,9 +308,7 @@ const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
 
     if (failures.length > 0) {
       const details = failures
-        .map(({ hue, mode, position, hex, contrast }) =>
-          `${mode} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`
-        )
+        .map(({ contrast, hex, hue, mode, position }) => `${mode} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`)
         .join("\n")
       throw new Error(`Foreground contrast fell below ${MINIMUM_TEXT_CONTRAST}:1:\n${details}`)
     }
@@ -340,27 +338,29 @@ const buildOutput = (hues: ReadonlyArray<FinalHue>) => ({
       sourcePattern: SOURCE_PATTERN_PATH,
       reference: ORANGE_REFERENCE,
       anchorStop: ANCHOR_STOP,
-      hueAnchors: Object.fromEntries(CHROMATIC_ANCHORS.map((h) => [h.name, h.anchor])),
+      hueAnchors: Object.fromEntries(CHROMATIC_ANCHORS.map((h) => [h.name, h.anchor]))
     },
     grey: {
       method: "helmholtz-kohlrausch (hue 257, chroma 0.025) off the orange reference; 800–1000 hand-tuned",
       source: GREY_SOURCE_PATH,
-      chromaScale: GREY_CHROMA_SCALE,
+      chromaScale: GREY_CHROMA_SCALE
     },
     dark: {
       method: "ciecam02-contrast-compensation",
       sourceBg: DARK_SOURCE_BG,
       targetBg: DARK_TARGET_BG,
-      yb: 15,
+      yb: 15
     },
-    alphaRamps: ALPHA_RAMPS,
+    alphaRamps: ALPHA_RAMPS
   },
   hues: Object.fromEntries(
     hues.map((hue) => [
       hue.name,
-      Object.fromEntries(hue.stops.map((stop) => [stop.position, { light: toDTCG(stop.light), dark: toDTCG(stop.dark) }])),
-    ]),
-  ),
+      Object.fromEntries(
+        hue.stops.map((stop) => [stop.position, { light: toDTCG(stop.light), dark: toDTCG(stop.dark) }])
+      )
+    ])
+  )
 })
 
 // ============================================================================
@@ -378,7 +378,7 @@ const main = Effect.gen(function*() {
   const chromaticLight = yield* Effect.forEach(
     CHROMATIC_ANCHORS,
     (hue) => generateChromaticLight(hue, reference, loadPattern),
-    { concurrency: "unbounded" },
+    { concurrency: "unbounded" }
   )
 
   yield* Effect.log("Loading grey light ramp (source of truth)...")
@@ -390,14 +390,16 @@ const main = Effect.gen(function*() {
   const colorHues = yield* Effect.forEach(
     [...chromaticLight, greyLight],
     (light) => deriveDark(light, sourceBg, targetBg),
-    { concurrency: "unbounded" },
+    { concurrency: "unbounded" }
   )
 
   const alphaHues = yield* Effect.forEach(["white", "black"] as const, buildAlphaHue)
   const contrastResults = yield* assertForegroundContrast(colorHues)
   yield* Effect.log("\nWhite foreground contrast:")
-  yield* Effect.forEach(contrastResults, ({ hue, mode, position, hex, contrast }) =>
-    Effect.log(`  ${mode.padEnd(5)} ${hue.padEnd(10)} ${position} ${hex}  ${contrast.toFixed(2)}:1`)
+  yield* Effect.forEach(
+    contrastResults,
+    ({ contrast, hex, hue, mode, position }) =>
+      Effect.log(`  ${mode.padEnd(5)} ${hue.padEnd(10)} ${position} ${hex}  ${contrast.toFixed(2)}:1`)
   )
 
   const allHues = [...colorHues, ...alphaHues]
@@ -412,6 +414,6 @@ const main = Effect.gen(function*() {
 NodeRuntime.runMain(
   main.pipe(
     Effect.provide(NodeContext.layer),
-    Effect.catchAll((error) => Effect.log(`Error: ${error}`)),
-  ),
+    Effect.catchAll((error) => Effect.log(`Error: ${error}`))
+  )
 )
