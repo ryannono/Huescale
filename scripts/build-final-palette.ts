@@ -326,7 +326,8 @@ const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
 
 /** Build a DTCG OKLCH color value (components rounded) with an sRGB hex fallback. */
 const toDTCG = (value: PaletteValue) => {
-  const components = [round(value.oklch.l, 4), round(value.oklch.c, 4), round(value.oklch.h, 2)]
+  const hue = value.oklch.c === 0 ? "none" : round(value.oklch.h, 2)
+  const components = [round(value.oklch.l, 4), round(value.oklch.c, 4), hue]
   return value.oklch.alpha < 1
     ? { colorSpace: "oklch", components, alpha: round(value.oklch.alpha, 4), hex: value.hex }
     : { colorSpace: "oklch", components, hex: value.hex }
