@@ -17,8 +17,8 @@
  *      with an effective background luminance Yb=15.
  *   4. white / black — fixed alpha ramps over #ffffff and #000105 respectively.
  *
- * The script writes palette.final.json and prints a validation table comparing
- * every generated value against the approved Figma swatches (the oracle below).
+ * The script writes palette.final.json after checking the shared foreground
+ * stops against the WCAG contrast threshold for normal text.
  *
  * Usage:
  *   pnpm dlx tsx scripts/build-final-palette.ts
@@ -105,52 +105,20 @@ const ALPHA_RAMPS = {
 } as const
 
 // ============================================================================
-// Validation Oracle — the approved Figma swatches
+// Accessibility Invariants
 // ============================================================================
 
-/**
- * Validation oracle: approved Figma swatches. orange/blue/red/grey are pinned to
- * Figma; green and the extended hues are generated fresh from their `.3` anchors
- * (no approved Figma yet).
- */
-const ORACLE: Readonly<Record<string, ReadonlyArray<{ position: number; light: string; dark: string }>>> = {
-  orange: [
-    { position: 100, light: "#fcdbcb", dark: "#f7d1bf" },
-    { position: 200, light: "#f8b695", dark: "#eca480" },
-    { position: 300, light: "#eb9265", dark: "#d77b4c" },
-    { position: 400, light: "#d77139", dark: "#bb571e" },
-    { position: 500, light: "#bd5200", dark: "#9a3700" },
-    { position: 600, light: "#9e3600", dark: "#771c00" },
-    { position: 700, light: "#782300", dark: "#520c00" },
-    { position: 800, light: "#531200", dark: "#300200" },
-    { position: 900, light: "#2f0300", dark: "#140000" },
-    { position: 1000, light: "#0b0100", dark: "#010000" },
-  ],
-  blue: [
-    { position: 100, light: "#d1e5ff", dark: "#c5ddfb" },
-    { position: 200, light: "#a3caff", dark: "#8dbaf7" },
-    { position: 300, light: "#7aaef9", dark: "#5d98eb" },
-    { position: 400, light: "#5591e8", dark: "#3476d3" },
-    { position: 500, light: "#3475d0", dark: "#0a58b4" },
-    { position: 600, light: "#1759b1", dark: "#003b8f" },
-    { position: 700, light: "#003f8d", dark: "#002369" },
-    { position: 800, light: "#002864", dark: "#001041" },
-    { position: 900, light: "#001338", dark: "#00031c" },
-    { position: 1000, light: "#00030d", dark: "#000002" },
-  ],
-  red: [
-    { position: 100, light: "#fed8d5", dark: "#f9ceca" },
-    { position: 200, light: "#fcb0ac", dark: "#f09e9a" },
-    { position: 300, light: "#ef8b87", dark: "#db7370" },
-    { position: 400, light: "#db6866", dark: "#bf4d4d" },
-    { position: 500, light: "#c14849", dark: "#9e2c31" },
-    { position: 600, light: "#a22b30", dark: "#7b0f1a" },
-    { position: 700, light: "#7e111c", dark: "#560009" },
-    { position: 800, light: "#58010c", dark: "#330002" },
-    { position: 900, light: "#310004", dark: "#150000" },
-    { position: 1000, light: "#0b0101", dark: "#020000" },
-  ],
-}
+/** Blueprint uses white text on solid intent surfaces in both modes. */
+const SOLID_FOREGROUND = "#ffffff"
+
+/** WCAG AA contrast threshold for normal text. */
+const MINIMUM_TEXT_CONTRAST = 4.5
+
+/** The lightest solid intent surface used in each mode. */
+const FOREGROUND_STOPS = [
+  { mode: "light", position: 500, getHex: (stop: FinalStop) => stop.light.hex },
+  { mode: "dark", position: 400, getHex: (stop: FinalStop) => stop.dark.hex },
+] as const
 
 // ============================================================================
 // Types
@@ -313,30 +281,42 @@ const buildAlphaHue = (name: "white" | "black"): Effect.Effect<FinalHue, never> 
 // Validation
 // ============================================================================
 
-/** Compare a generated hue against the oracle; return mismatch lines. */
-const validateHue = (hue: FinalHue): ReadonlyArray<string> => {
-  const expected = ORACLE[hue.name]
-  if (expected === undefined) return []
-  return hue.stops.flatMap((stop) => {
-    const want = expected.find((e) => e.position === stop.position)
-    if (want === undefined) return []
-    const lines: Array<string> = []
-    if (normalizeHex(want.light) !== stop.light.hex) {
-      lines.push(`  ✗ ${hue.name}.${stop.position} light: got ${stop.light.hex}, want ${normalizeHex(want.light)}`)
-    }
-    if (normalizeHex(want.dark) !== stop.dark.hex) {
-      lines.push(`  ✗ ${hue.name}.${stop.position} dark:  got ${stop.dark.hex}, want ${normalizeHex(want.dark)}`)
-    }
-    return lines
-  })
+interface ContrastResult {
+  readonly hue: string
+  readonly mode: "light" | "dark"
+  readonly position: number
+  readonly hex: string
+  readonly contrast: number
 }
 
-/** Render a compact per-hue summary line. */
-const summarizeHue = (hue: FinalHue): string => {
-  const mismatches = validateHue(hue).length
-  const status = ORACLE[hue.name] === undefined ? "(no oracle)" : mismatches === 0 ? "✓ matches Figma" : `✗ ${mismatches} mismatch(es)`
-  return `  ${hue.name.padEnd(7)} ${hue.stops.length} stops  ${status}`
-}
+/** Measure white foreground contrast at each mode's lightest solid surface stop. */
+const measureForegroundContrast = (hues: ReadonlyArray<FinalHue>): ReadonlyArray<ContrastResult> =>
+  hues.flatMap((hue) =>
+    FOREGROUND_STOPS.map(({ mode, position, getHex }) => {
+      const stop = hue.stops.find((candidate) => candidate.position === position)
+      if (stop === undefined) throw new Error(`${hue.name} is missing stop ${position}`)
+      const hex = getHex(stop)
+      return { hue: hue.name, mode, position, hex, contrast: culori.wcagContrast(SOLID_FOREGROUND, hex) }
+    })
+  )
+
+/** Fail generation if a shared foreground stop does not meet WCAG AA for normal text. */
+const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
+  Effect.sync(() => {
+    const results = measureForegroundContrast(hues)
+    const failures = results.filter(({ contrast }) => contrast < MINIMUM_TEXT_CONTRAST)
+
+    if (failures.length > 0) {
+      const details = failures
+        .map(({ hue, mode, position, hex, contrast }) =>
+          `${mode} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`
+        )
+        .join("\n")
+      throw new Error(`Foreground contrast fell below ${MINIMUM_TEXT_CONTRAST}:1:\n${details}`)
+    }
+
+    return results
+  })
 
 // ============================================================================
 // Output
@@ -407,29 +387,26 @@ const main = Effect.gen(function*() {
   yield* Effect.log("Deriving dark ramps (CIECAM02 contrast compensation)...")
   const sourceBg = yield* parseColorStringToOKLCH(DARK_SOURCE_BG)
   const targetBg = yield* parseColorStringToOKLCH(DARK_TARGET_BG)
-  const chromaticHues = yield* Effect.forEach(
+  const colorHues = yield* Effect.forEach(
     [...chromaticLight, greyLight],
     (light) => deriveDark(light, sourceBg, targetBg),
     { concurrency: "unbounded" },
   )
 
   const alphaHues = yield* Effect.forEach(["white", "black"] as const, buildAlphaHue)
-  const allHues = [...chromaticHues, ...alphaHues]
+  const contrastResults = yield* assertForegroundContrast(colorHues)
+  yield* Effect.log("\nWhite foreground contrast:")
+  yield* Effect.forEach(contrastResults, ({ hue, mode, position, hex, contrast }) =>
+    Effect.log(`  ${mode.padEnd(5)} ${hue.padEnd(10)} ${position} ${hex}  ${contrast.toFixed(2)}:1`)
+  )
+
+  const allHues = [...colorHues, ...alphaHues]
 
   const output = buildOutput(allHues)
   yield* fs.writeFileString(OUTPUT_PATH, JSON.stringify(output, null, 2) + "\n")
   yield* Effect.log(`Wrote ${OUTPUT_PATH}`)
 
-  yield* Effect.log("\nValidation against Figma swatches:")
-  yield* Effect.forEach(allHues, (hue) => Effect.log(summarizeHue(hue)))
-
-  const mismatches = allHues.flatMap(validateHue)
-  if (mismatches.length > 0) {
-    yield* Effect.log("\nMismatches:")
-    yield* Effect.forEach(mismatches, (line) => Effect.log(line))
-  } else {
-    yield* Effect.log("\nAll chromatic + grey ramps reproduce the Figma swatches exactly.")
-  }
+  yield* Effect.log(`All shared foreground stops meet ${MINIMUM_TEXT_CONTRAST}:1.`)
 })
 
 NodeRuntime.runMain(
