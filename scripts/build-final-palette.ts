@@ -116,10 +116,14 @@ const SOLID_FOREGROUND = "#ffffff"
 /** WCAG AA contrast threshold for normal text. */
 const MINIMUM_TEXT_CONTRAST = 4.5
 
-/** The lightest solid intent surface used in each mode. */
-const FOREGROUND_STOPS = [
-  { mode: "light", position: 500, getHex: (stop: FinalStop) => stop.light.hex },
-  { mode: "dark", position: 400, getHex: (stop: FinalStop) => stop.dark.hex }
+/** Palette stops used by solid intent surfaces in each interaction state. */
+const SOLID_SURFACE_STATES = [
+  { mode: "light", state: "rest", position: 500 },
+  { mode: "light", state: "hover", position: 600 },
+  { mode: "light", state: "active", position: 700 },
+  { mode: "dark", state: "rest", position: 500 },
+  { mode: "dark", state: "hover", position: 400 },
+  { mode: "dark", state: "active", position: 600 }
 ] as const
 
 // ============================================================================
@@ -288,23 +292,24 @@ const buildAlphaHue = (name: "white" | "black"): Effect.Effect<FinalHue, never> 
 interface ContrastResult {
   readonly hue: string
   readonly mode: "light" | "dark"
+  readonly state: "rest" | "hover" | "active"
   readonly position: number
   readonly hex: string
   readonly contrast: number
 }
 
-/** Measure white foreground contrast at each mode's lightest solid surface stop. */
+/** Measure white foreground contrast across all solid intent surface states. */
 const measureForegroundContrast = (hues: ReadonlyArray<FinalHue>): ReadonlyArray<ContrastResult> =>
   hues.flatMap((hue) =>
-    FOREGROUND_STOPS.map(({ getHex, mode, position }) => {
+    SOLID_SURFACE_STATES.map(({ mode, position, state }) => {
       const stop = hue.stops.find((candidate) => candidate.position === position)
       if (stop === undefined) throw new Error(`${hue.name} is missing stop ${position}`)
-      const hex = getHex(stop)
-      return { hue: hue.name, mode, position, hex, contrast: culori.wcagContrast(SOLID_FOREGROUND, hex) }
+      const hex = stop[mode].hex
+      return { hue: hue.name, mode, state, position, hex, contrast: culori.wcagContrast(SOLID_FOREGROUND, hex) }
     })
   )
 
-/** Fail generation if a shared foreground stop does not meet WCAG AA for normal text. */
+/** Fail generation if any solid surface state does not meet WCAG AA for normal text. */
 const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
   Effect.sync(() => {
     const results = measureForegroundContrast(hues)
@@ -312,13 +317,28 @@ const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
 
     if (failures.length > 0) {
       const details = failures
-        .map(({ contrast, hex, hue, mode, position }) => `${mode} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`)
+        .map(({ contrast, hex, hue, mode, position, state }) =>
+          `${mode} ${state} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`
+        )
         .join("\n")
       throw new Error(`Foreground contrast fell below ${MINIMUM_TEXT_CONTRAST}:1:\n${details}`)
     }
 
     return results
   })
+
+/** Summarize the contrast range for one semantic surface state. */
+const summarizeContrastRange = (
+  state: typeof SOLID_SURFACE_STATES[number],
+  results: ReadonlyArray<ContrastResult>
+): string => {
+  const contrasts = results
+    .filter((result) => result.mode === state.mode && result.state === state.state)
+    .map(({ contrast }) => contrast)
+  const minimum = Math.min(...contrasts)
+  const maximum = Math.max(...contrasts)
+  return `${state.mode.padEnd(5)} ${state.state.padEnd(6)} ${state.position}  ${minimum.toFixed(2)}–${maximum.toFixed(2)}:1`
+}
 
 // ============================================================================
 // Output
@@ -402,11 +422,10 @@ const main = Effect.gen(function*() {
 
   const alphaHues = yield* Effect.forEach(["white", "black"] as const, buildAlphaHue)
   const contrastResults = yield* assertForegroundContrast(colorHues)
-  yield* Effect.log("\nWhite foreground contrast:")
+  yield* Effect.log("\nWhite foreground contrast by solid intent surface state:")
   yield* Effect.forEach(
-    contrastResults,
-    ({ contrast, hex, hue, mode, position }) =>
-      Effect.log(`  ${mode.padEnd(5)} ${hue.padEnd(10)} ${position} ${hex}  ${contrast.toFixed(2)}:1`)
+    SOLID_SURFACE_STATES,
+    (state) => Effect.log(`  ${summarizeContrastRange(state, contrastResults)}`)
   )
 
   const allHues = [...colorHues, ...alphaHues]
@@ -415,7 +434,7 @@ const main = Effect.gen(function*() {
   yield* fs.writeFileString(OUTPUT_PATH, JSON.stringify(output, null, 2) + "\n")
   yield* Effect.log(`Wrote ${OUTPUT_PATH}`)
 
-  yield* Effect.log(`All shared foreground stops meet ${MINIMUM_TEXT_CONTRAST}:1.`)
+  yield* Effect.log(`All solid intent surface states meet ${MINIMUM_TEXT_CONTRAST}:1.`)
 })
 
 NodeRuntime.runMain(
