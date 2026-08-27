@@ -346,20 +346,11 @@ const main = Effect.gen(function*() {
   )
 
   const alphaHues = yield* Effect.forEach(["white", "black"] as const, buildAlphaHue)
-  const contrastResults = yield* assertForegroundContrast(colorHues)
-  yield* Effect.log("\nWhite foreground contrast by solid intent surface state:")
-  yield* Effect.forEach(
-    SOLID_SURFACE_STATES,
-    (state) => Effect.log(`  ${summarizeContrastRange(state, contrastResults)}`)
-  )
-
   const allHues = [...colorHues, ...alphaHues]
 
   const output = buildOutput(allHues)
   yield* fs.writeFileString(OUTPUT_PATH, JSON.stringify(output, null, 2) + "\n")
   yield* Effect.log(`Wrote ${OUTPUT_PATH}`)
-
-  yield* Effect.log(`All solid intent surface states meet ${MINIMUM_TEXT_CONTRAST}:1.`)
 })
 
 NodeRuntime.runMain(
