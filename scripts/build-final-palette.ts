@@ -266,63 +266,6 @@ const buildAlphaHue = (name: "white" | "black"): Effect.Effect<FinalHue, never> 
   }).pipe(Effect.orDie)
 
 // ============================================================================
-// Validation
-// ============================================================================
-
-interface ContrastResult {
-  readonly hue: string
-  readonly mode: "light" | "dark"
-  readonly state: "rest" | "hover" | "active"
-  readonly position: number
-  readonly hex: string
-  readonly contrast: number
-}
-
-/** Measure white foreground contrast across all solid intent surface states. */
-const measureForegroundContrast = (hues: ReadonlyArray<FinalHue>): ReadonlyArray<ContrastResult> =>
-  hues.flatMap((hue) =>
-    SOLID_SURFACE_STATES.map(({ mode, position, state }) => {
-      const stop = hue.stops.find((candidate) => candidate.position === position)
-      if (stop === undefined) throw new Error(`${hue.name} is missing stop ${position}`)
-      const hex = stop[mode].hex
-      return { hue: hue.name, mode, state, position, hex, contrast: culori.wcagContrast(SOLID_FOREGROUND, hex) }
-    })
-  )
-
-/** Fail generation if any solid surface state does not meet WCAG AA for normal text. */
-const assertForegroundContrast = (hues: ReadonlyArray<FinalHue>) =>
-  Effect.sync(() => {
-    const results = measureForegroundContrast(hues)
-    const failures = results.filter(({ contrast }) => contrast < MINIMUM_TEXT_CONTRAST)
-
-    if (failures.length > 0) {
-      const details = failures
-        .map(({ contrast, hex, hue, mode, position, state }) =>
-          `${mode} ${state} ${hue}.${position} ${hex}: ${contrast.toFixed(2)}:1`
-        )
-        .join("\n")
-      throw new Error(`Foreground contrast fell below ${MINIMUM_TEXT_CONTRAST}:1:\n${details}`)
-    }
-
-    return results
-  })
-
-/** Summarize the contrast range for one semantic surface state. */
-const summarizeContrastRange = (
-  state: typeof SOLID_SURFACE_STATES[number],
-  results: ReadonlyArray<ContrastResult>
-): string => {
-  const contrasts = results
-    .filter((result) => result.mode === state.mode && result.state === state.state)
-    .map(({ contrast }) => contrast)
-  const minimum = Math.min(...contrasts)
-  const maximum = Math.max(...contrasts)
-  return `${state.mode.padEnd(5)} ${state.state.padEnd(6)} ${state.position}  ${minimum.toFixed(2)}–${
-    maximum.toFixed(2)
-  }:1`
-}
-
-// ============================================================================
 // Output
 // ============================================================================
 
