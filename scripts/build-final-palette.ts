@@ -18,8 +18,8 @@
  *      with an effective background luminance Yb=15.
  *   4. white / black — fixed alpha ramps over #ffffff and #000105 respectively.
  *
- * The script writes palette.final.json after checking the shared foreground
- * stops against the WCAG contrast threshold for normal text.
+ * The script writes palette.final.json. Consumers validate accessibility after
+ * resolving their semantic foreground and surface tokens.
  *
  * Usage:
  *   pnpm dlx tsx scripts/build-final-palette.ts
@@ -105,26 +105,6 @@ const ALPHA_RAMPS = {
     opacity: [0.025, 0.09, 0.12, 0.3, 0.5, 0.8, 0.85, 0.9, 0.95, 1]
   }
 } as const
-
-// ============================================================================
-// Accessibility Invariants
-// ============================================================================
-
-/** Blueprint uses white text on solid intent surfaces in both modes. */
-const SOLID_FOREGROUND = "#ffffff"
-
-/** WCAG AA contrast threshold for normal text. */
-const MINIMUM_TEXT_CONTRAST = 4.5
-
-/** Palette stops used by solid intent surfaces in each interaction state. */
-const SOLID_SURFACE_STATES = [
-  { mode: "light", state: "rest", position: 500 },
-  { mode: "light", state: "hover", position: 600 },
-  { mode: "light", state: "active", position: 700 },
-  { mode: "dark", state: "rest", position: 500 },
-  { mode: "dark", state: "hover", position: 400 },
-  { mode: "dark", state: "active", position: 600 }
-] as const
 
 // ============================================================================
 // Types
