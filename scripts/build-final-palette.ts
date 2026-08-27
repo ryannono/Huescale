@@ -337,7 +337,9 @@ const summarizeContrastRange = (
     .map(({ contrast }) => contrast)
   const minimum = Math.min(...contrasts)
   const maximum = Math.max(...contrasts)
-  return `${state.mode.padEnd(5)} ${state.state.padEnd(6)} ${state.position}  ${minimum.toFixed(2)}–${maximum.toFixed(2)}:1`
+  return `${state.mode.padEnd(5)} ${state.state.padEnd(6)} ${state.position}  ${minimum.toFixed(2)}–${
+    maximum.toFixed(2)
+  }:1`
 }
 
 // ============================================================================
